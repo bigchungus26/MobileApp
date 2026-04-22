@@ -10,15 +10,15 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.smarttracker.R;
+import com.example.smarttracker.data.Habit;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHolder> {
 
-    private JSONArray habits = new JSONArray();
-    private OnHabitDeleteListener listener;
+    private List<Habit> habits = new ArrayList<>();
+    private final OnHabitDeleteListener listener;
 
     public interface OnHabitDeleteListener {
         void onDelete(int habitId, String title);
@@ -28,7 +28,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
         this.listener = listener;
     }
 
-    public void setHabits(JSONArray habits) {
+    public void setHabits(List<Habit> habits) {
         this.habits = habits;
         notifyDataSetChanged();
     }
@@ -43,32 +43,25 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
 
     @Override
     public void onBindViewHolder(@NonNull HabitViewHolder holder, int position) {
-        try {
-            JSONObject habit = habits.getJSONObject(position);
-            String title = habit.getString("title");
-            String description = habit.optString("description", "");
-            String category = habit.optString("category", "");
-            String frequency = habit.optString("frequency", "DAILY");
-            int streak = habit.optInt("streak", 0);
-            int habitId = habit.getInt("id");
+        Habit habit = habits.get(position);
+        String description = habit.description != null && !habit.description.isEmpty()
+                ? habit.description
+                : (habit.category != null && !habit.category.isEmpty()
+                        ? habit.category : "No description");
 
-            holder.tvTitle.setText(title);
-            holder.tvDescription.setText(!description.isEmpty() ? description :
-                    !category.isEmpty() ? category : "No description");
-            holder.tvFrequency.setText(frequency);
-            holder.tvStreak.setText("Streak: " + streak);
+        holder.tvTitle.setText(habit.title);
+        holder.tvDescription.setText(description);
+        holder.tvFrequency.setText(habit.frequency);
+        holder.tvStreak.setText("Streak: " + habit.streak);
 
-            holder.ivDelete.setOnClickListener(v -> {
-                if (listener != null) listener.onDelete(habitId, title);
-            });
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
+        holder.ivDelete.setOnClickListener(v -> {
+            if (listener != null) listener.onDelete(habit.id, habit.title);
+        });
     }
 
     @Override
     public int getItemCount() {
-        return habits.length();
+        return habits.size();
     }
 
     static class HabitViewHolder extends RecyclerView.ViewHolder {

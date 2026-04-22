@@ -16,28 +16,22 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonArrayRequest;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.R;
 import com.example.smarttracker.adapter.HabitAdapter;
+import com.example.smarttracker.data.Habit;
+import com.example.smarttracker.data.Repository;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.List;
 
 public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDeleteListener {
-
-    private static final String BASE_URL = "http://10.0.2.2/smarttracker/";
 
     private RecyclerView recyclerHabits;
     private HabitAdapter habitAdapter;
     private ProgressBar progressHabits;
     private TextView tvEmpty;
-    private RequestQueue queue;
+    private Repository repository;
     private SessionManager sessionManager;
 
     @Nullable
@@ -50,7 +44,7 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        queue = Volley.newRequestQueue(requireContext());
+        repository = Repository.get(requireContext());
         sessionManager = new SessionManager(requireContext());
 
         recyclerHabits = view.findViewById(R.id.recyclerHabits);
@@ -71,26 +65,11 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
     }
 
     private void loadHabits() {
-        progressHabits.setVisibility(View.VISIBLE);
-        int userId = sessionManager.getUserId();
-        String url = BASE_URL + "gethabits.php?user_id=" + userId;
-
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                response -> {
-                    if (!isAdded()) return;
-                    progressHabits.setVisibility(View.GONE);
-                    habitAdapter.setHabits(response);
-                    tvEmpty.setVisibility(response.length() == 0 ? View.VISIBLE : View.GONE);
-                    recyclerHabits.setVisibility(response.length() == 0 ? View.GONE : View.VISIBLE);
-                },
-                error -> {
-                    if (isAdded()) {
-                        progressHabits.setVisibility(View.GONE);
-                        Toast.makeText(requireContext(), "Failed to load habits", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-        queue.add(request);
+        progressHabits.setVisibility(View.GONE);
+        List<Habit> habits = repository.getHabits(sessionManager.getUserId());
+        habitAdapter.setHabits(habits);
+        tvEmpty.setVisibility(habits.isEmpty() ? View.VISIBLE : View.GONE);
+        recyclerHabits.setVisibility(habits.isEmpty() ? View.GONE : View.VISIBLE);
     }
 
     public void showAddHabitDialog() {
@@ -117,33 +96,10 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                     String frequency = rgFrequency.getCheckedRadioButtonId() == R.id.rbWeekly
                             ? "WEEKLY" : "DAILY";
 
-                    String url = BASE_URL + "addhabit.php";
-
-                    StringRequest request = new StringRequest(Request.Method.POST, url,
-                            response -> {
-                                if (isAdded()) {
-                                    Toast.makeText(requireContext(), "Habit created!", Toast.LENGTH_SHORT).show();
-                                    loadHabits();
-                                }
-                            },
-                            error -> {
-                                if (isAdded()) {
-                                    Toast.makeText(requireContext(), "Network error", Toast.LENGTH_SHORT).show();
-                                }
-                            }) {
-                        @Override
-                        protected Map<String, String> getParams() {
-                            Map<String, String> params = new HashMap<>();
-                            params.put("user_id", String.valueOf(sessionManager.getUserId()));
-                            params.put("title", title);
-                            params.put("description", description);
-                            params.put("category", category);
-                            params.put("frequency", frequency);
-                            return params;
-                        }
-                    };
-
-                    queue.add(request);
+                    repository.addHabit(sessionManager.getUserId(), title, description,
+                            category, frequency);
+                    Toast.makeText(requireContext(), "Habit created!", Toast.LENGTH_SHORT).show();
+                    loadHabits();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
@@ -155,27 +111,8 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                 .setTitle("Delete Habit")
                 .setMessage("Remove \"" + title + "\"?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    String url = BASE_URL + "deletehabit.php";
-
-                    StringRequest request = new StringRequest(Request.Method.POST, url,
-                            response -> {
-                                if (isAdded()) loadHabits();
-                            },
-                            error -> {
-                                if (isAdded()) {
-                                    Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show();
-                                }
-                            }) {
-                        @Override
-                        protected Map<String, String> getParams() {
-                            Map<String, String> params = new HashMap<>();
-                            params.put("habit_id", String.valueOf(habitId));
-                            params.put("user_id", String.valueOf(sessionManager.getUserId()));
-                            return params;
-                        }
-                    };
-
-                    queue.add(request);
+                    repository.deleteHabit(habitId, sessionManager.getUserId());
+                    loadHabits();
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
