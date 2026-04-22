@@ -1,6 +1,5 @@
 package com.example.smarttracker;
 
-import android.content.Intent;
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -38,9 +37,7 @@ public class MainActivity extends AppCompatActivity {
 
         sessionManager = new SessionManager(this);
         if (!sessionManager.isLoggedIn()) {
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
-            return;
+            sessionManager.saveSession(1, "User", "");
         }
 
         EdgeToEdge.enable(this);
@@ -103,18 +100,11 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Profile icon -> logout option
         ivProfile.setOnClickListener(v -> {
             new AlertDialog.Builder(this)
                     .setTitle("Account")
-                    .setMessage("Logged in as " + sessionManager.getUserEmail())
-                    .setPositiveButton("Log Out", (dialog, which) -> {
-                        sessionManager.logout();
-                        startActivity(new Intent(this, LoginActivity.class)
-                                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-                        finish();
-                    })
-                    .setNegativeButton("Cancel", null)
+                    .setMessage(sessionManager.getUserName())
+                    .setPositiveButton("OK", null)
                     .show();
         });
     }
