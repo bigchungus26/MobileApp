@@ -16,27 +16,29 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.R;
 import com.example.smarttracker.adapter.WorkoutAdapter;
-import com.example.smarttracker.api.ApiClient;
-import com.example.smarttracker.api.ApiService;
-import com.example.smarttracker.model.Workout;
-import com.example.smarttracker.model.WorkoutRequest;
+import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
-import java.util.List;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import java.util.HashMap;
+import java.util.Map;
 
 public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorkoutActionListener {
+
+    private static final String BASE_URL = "http://10.0.2.2/smarttracker/";
 
     private RecyclerView recyclerWorkouts;
     private WorkoutAdapter workoutAdapter;
     private ProgressBar progressWorkouts;
     private TextView tvEmpty;
-    private ApiService api;
+    private RequestQueue queue;
+    private SessionManager sessionManager;
 
     @Nullable
     @Override
@@ -48,7 +50,8 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        api = ApiClient.getApiService(requireContext());
+        queue = Volley.newRequestQueue(requireContext());
+        sessionManager = new SessionManager(requireContext());
 
         recyclerWorkouts = view.findViewById(R.id.recyclerWorkouts);
         progressWorkouts = view.findViewById(R.id.progressWorkouts);
@@ -69,27 +72,25 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
 
     private void loadWorkouts() {
         progressWorkouts.setVisibility(View.VISIBLE);
-        api.getTodayWorkouts().enqueue(new Callback<List<Workout>>() {
-            @Override
-            public void onResponse(Call<List<Workout>> call, Response<List<Workout>> response) {
-                if (!isAdded()) return;
-                progressWorkouts.setVisibility(View.GONE);
-                if (response.isSuccessful() && response.body() != null) {
-                    List<Workout> workouts = response.body();
-                    workoutAdapter.setWorkouts(workouts);
-                    tvEmpty.setVisibility(workouts.isEmpty() ? View.VISIBLE : View.GONE);
-                    recyclerWorkouts.setVisibility(workouts.isEmpty() ? View.GONE : View.VISIBLE);
-                }
-            }
+        int userId = sessionManager.getUserId();
+        String url = BASE_URL + "getworkouts.php?user_id=" + userId;
 
-            @Override
-            public void onFailure(Call<List<Workout>> call, Throwable t) {
-                if (isAdded()) {
+        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
+                response -> {
+                    if (!isAdded()) return;
                     progressWorkouts.setVisibility(View.GONE);
-                    Toast.makeText(requireContext(), "Failed to load workouts", Toast.LENGTH_SHORT).show();
-                }
-            }
-        });
+                    workoutAdapter.setWorkouts(response);
+                    tvEmpty.setVisibility(response.length() == 0 ? View.VISIBLE : View.GONE);
+                    recyclerWorkouts.setVisibility(response.length() == 0 ? View.GONE : View.VISIBLE);
+                },
+                error -> {
+                    if (isAdded()) {
+                        progressWorkouts.setVisibility(View.GONE);
+                        Toast.makeText(requireContext(), "Failed to load workouts", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+        queue.add(request);
     }
 
     public void showAddWorkoutDialog() {
@@ -111,14 +112,8 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
                         return;
                     }
 
-                    int duration = 0;
-                    int calories = 0;
-                    try {
-                        duration = Integer.parseInt(etDuration.getText().toString().trim());
-                    } catch (NumberFormatException ignored) {}
-                    try {
-                        calories = Integer.parseInt(etCalories.getText().toString().trim());
-                    } catch (NumberFormatException ignored) {}
+                    String duration = etDuration.getText().toString().trim();
+                    String calories = etCalories.getText().toString().trim();
 
                     String intensity;
                     if (rgIntensity.getCheckedRadioButtonId() == R.id.rbLow) {
@@ -129,68 +124,90 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
                         intensity = "MEDIUM";
                     }
 
-                    WorkoutRequest request = new WorkoutRequest(title, duration, calories, intensity, null);
-                    api.createWorkout(request).enqueue(new Callback<Workout>() {
-                        @Override
-                        public void onResponse(Call<Workout> call, Response<Workout> response) {
-                            if (isAdded()) {
-                                if (response.isSuccessful()) {
+                    String url = BASE_URL + "addworkout.php";
+
+                    StringRequest request = new StringRequest(Request.Method.POST, url,
+                            response -> {
+                                if (isAdded()) {
                                     Toast.makeText(requireContext(), "Workout logged!", Toast.LENGTH_SHORT).show();
                                     loadWorkouts();
-                                } else {
-                                    Toast.makeText(requireContext(), "Failed to add workout", Toast.LENGTH_SHORT).show();
                                 }
-                            }
-                        }
-
+                            },
+                            error -> {
+                                if (isAdded()) {
+                                    Toast.makeText(requireContext(), "Network error", Toast.LENGTH_SHORT).show();
+                                }
+                            }) {
                         @Override
-                        public void onFailure(Call<Workout> call, Throwable t) {
-                            if (isAdded()) {
-                                Toast.makeText(requireContext(), "Network error", Toast.LENGTH_SHORT).show();
-                            }
+                        protected Map<String, String> getParams() {
+                            Map<String, String> params = new HashMap<>();
+                            params.put("user_id", String.valueOf(sessionManager.getUserId()));
+                            params.put("title", title);
+                            params.put("duration_minutes", duration.isEmpty() ? "0" : duration);
+                            params.put("calories", calories.isEmpty() ? "0" : calories);
+                            params.put("intensity", intensity);
+                            return params;
                         }
-                    });
+                    };
+
+                    queue.add(request);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
     @Override
-    public void onToggle(Workout workout) {
-        api.toggleWorkout(workout.getId()).enqueue(new Callback<Workout>() {
-            @Override
-            public void onResponse(Call<Workout> call, Response<Workout> response) {
-                if (isAdded()) loadWorkouts();
-            }
+    public void onToggle(int workoutId) {
+        String url = BASE_URL + "toggleworkout.php";
 
+        StringRequest request = new StringRequest(Request.Method.POST, url,
+                response -> {
+                    if (isAdded()) loadWorkouts();
+                },
+                error -> {
+                    if (isAdded()) {
+                        Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show();
+                    }
+                }) {
             @Override
-            public void onFailure(Call<Workout> call, Throwable t) {
-                if (isAdded()) {
-                    Toast.makeText(requireContext(), "Failed to update", Toast.LENGTH_SHORT).show();
-                }
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("workout_id", String.valueOf(workoutId));
+                params.put("user_id", String.valueOf(sessionManager.getUserId()));
+                return params;
             }
-        });
+        };
+
+        queue.add(request);
     }
 
     @Override
-    public void onDelete(Workout workout) {
+    public void onDelete(int workoutId, String title) {
         new AlertDialog.Builder(requireContext())
                 .setTitle("Delete Workout")
-                .setMessage("Remove \"" + workout.getTitle() + "\"?")
+                .setMessage("Remove \"" + title + "\"?")
                 .setPositiveButton("Delete", (dialog, which) -> {
-                    api.deleteWorkout(workout.getId()).enqueue(new Callback<Void>() {
-                        @Override
-                        public void onResponse(Call<Void> call, Response<Void> response) {
-                            if (isAdded()) loadWorkouts();
-                        }
+                    String url = BASE_URL + "deleteworkout.php";
 
+                    StringRequest request = new StringRequest(Request.Method.POST, url,
+                            response -> {
+                                if (isAdded()) loadWorkouts();
+                            },
+                            error -> {
+                                if (isAdded()) {
+                                    Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show();
+                                }
+                            }) {
                         @Override
-                        public void onFailure(Call<Void> call, Throwable t) {
-                            if (isAdded()) {
-                                Toast.makeText(requireContext(), "Failed to delete", Toast.LENGTH_SHORT).show();
-                            }
+                        protected Map<String, String> getParams() {
+                            Map<String, String> params = new HashMap<>();
+                            params.put("workout_id", String.valueOf(workoutId));
+                            params.put("user_id", String.valueOf(sessionManager.getUserId()));
+                            return params;
                         }
-                    });
+                    };
+
+                    queue.add(request);
                 })
                 .setNegativeButton("Cancel", null)
                 .show();

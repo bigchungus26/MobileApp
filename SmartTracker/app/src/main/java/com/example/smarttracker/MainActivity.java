@@ -24,8 +24,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 public class MainActivity extends AppCompatActivity {
 
     private BottomNavigationView bottomNav;
-    private FloatingActionButton fabAdd;
-    private TextView tvUserName;
     private SessionManager sessionManager;
 
     private HomeFragment homeFragment = new HomeFragment();
@@ -53,9 +51,9 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        tvUserName = findViewById(R.id.tvUserName);
+        TextView tvUserName = findViewById(R.id.tvUserName);
         bottomNav = findViewById(R.id.bottomNav);
-        fabAdd = findViewById(R.id.fabAdd);
+        FloatingActionButton fabAdd = findViewById(R.id.fabAdd);
         ImageView ivProfile = findViewById(R.id.ivProfile);
 
         // Set real user name from session
@@ -90,7 +88,6 @@ public class MainActivity extends AppCompatActivity {
             } else if (activeFragment == workoutsFragment) {
                 workoutsFragment.showAddWorkoutDialog();
             } else {
-                // Default: show choice dialog
                 new AlertDialog.Builder(this)
                         .setTitle("Add New")
                         .setItems(new String[]{"New Habit", "New Workout"}, (dialog, which) -> {

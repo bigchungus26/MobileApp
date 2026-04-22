@@ -10,16 +10,18 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.smarttracker.api.ApiClient;
-import com.example.smarttracker.api.ApiService;
-import com.example.smarttracker.model.AuthResponse;
-import com.example.smarttracker.model.RegisterRequest;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class RegisterActivity extends AppCompatActivity {
 
@@ -27,6 +29,8 @@ public class RegisterActivity extends AppCompatActivity {
     private Button btnRegister;
     private ProgressBar progressRegister;
     private SessionManager sessionManager;
+
+    private static final String URL = "http://10.0.2.2/smarttracker/register.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,33 +68,47 @@ public class RegisterActivity extends AppCompatActivity {
         btnRegister.setEnabled(false);
         progressRegister.setVisibility(View.VISIBLE);
 
-        ApiService api = ApiClient.getApiService(this);
-        api.register(new RegisterRequest(name, email, password)).enqueue(new Callback<AuthResponse>() {
-            @Override
-            public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
-                progressRegister.setVisibility(View.GONE);
-                btnRegister.setEnabled(true);
-
-                if (response.isSuccessful() && response.body() != null) {
-                    AuthResponse auth = response.body();
-                    sessionManager.saveSession(auth.getToken(), auth.getName(),
-                            auth.getEmail(), auth.getUserId());
-                    startActivity(new Intent(RegisterActivity.this, MainActivity.class)
-                            .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-                    finish();
-                } else {
-                    Toast.makeText(RegisterActivity.this, "Registration failed. Email may already be in use.",
+        RequestQueue queue = Volley.newRequestQueue(this);
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URL,
+                response -> {
+                    progressRegister.setVisibility(View.GONE);
+                    btnRegister.setEnabled(true);
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        if (json.getBoolean("success")) {
+                            sessionManager.saveSession(
+                                    json.getInt("userId"),
+                                    json.getString("name"),
+                                    json.getString("email")
+                            );
+                            startActivity(new Intent(RegisterActivity.this, MainActivity.class)
+                                    .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                            finish();
+                        } else {
+                            Toast.makeText(RegisterActivity.this, json.getString("message"),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(RegisterActivity.this, "Error parsing response",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    progressRegister.setVisibility(View.GONE);
+                    btnRegister.setEnabled(true);
+                    Toast.makeText(RegisterActivity.this, "Network error: " + error.toString(),
                             Toast.LENGTH_SHORT).show();
-                }
-            }
-
+                }) {
             @Override
-            public void onFailure(Call<AuthResponse> call, Throwable t) {
-                progressRegister.setVisibility(View.GONE);
-                btnRegister.setEnabled(true);
-                Toast.makeText(RegisterActivity.this, "Network error: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("name", name);
+                params.put("email", email);
+                params.put("password", password);
+                return params;
             }
-        });
+        };
+
+        queue.add(stringRequest);
     }
 }

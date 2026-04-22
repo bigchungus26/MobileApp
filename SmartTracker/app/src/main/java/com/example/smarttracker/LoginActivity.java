@@ -10,16 +10,18 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.smarttracker.api.ApiClient;
-import com.example.smarttracker.api.ApiService;
-import com.example.smarttracker.model.AuthResponse;
-import com.example.smarttracker.model.LoginRequest;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -27,6 +29,8 @@ public class LoginActivity extends AppCompatActivity {
     private Button btnLogin;
     private ProgressBar progressLogin;
     private SessionManager sessionManager;
+
+    private static final String URL = "http://10.0.2.2/smarttracker/login.php";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,32 +69,45 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin.setEnabled(false);
         progressLogin.setVisibility(View.VISIBLE);
 
-        ApiService api = ApiClient.getApiService(this);
-        api.login(new LoginRequest(email, password)).enqueue(new Callback<AuthResponse>() {
-            @Override
-            public void onResponse(Call<AuthResponse> call, Response<AuthResponse> response) {
-                progressLogin.setVisibility(View.GONE);
-                btnLogin.setEnabled(true);
-
-                if (response.isSuccessful() && response.body() != null) {
-                    AuthResponse auth = response.body();
-                    sessionManager.saveSession(auth.getToken(), auth.getName(),
-                            auth.getEmail(), auth.getUserId());
-                    startActivity(new Intent(LoginActivity.this, MainActivity.class));
-                    finish();
-                } else {
-                    Toast.makeText(LoginActivity.this, "Invalid email or password",
+        RequestQueue queue = Volley.newRequestQueue(this);
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URL,
+                response -> {
+                    progressLogin.setVisibility(View.GONE);
+                    btnLogin.setEnabled(true);
+                    try {
+                        JSONObject json = new JSONObject(response);
+                        if (json.getBoolean("success")) {
+                            sessionManager.saveSession(
+                                    json.getInt("userId"),
+                                    json.getString("name"),
+                                    json.getString("email")
+                            );
+                            startActivity(new Intent(LoginActivity.this, MainActivity.class));
+                            finish();
+                        } else {
+                            Toast.makeText(LoginActivity.this, json.getString("message"),
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    } catch (JSONException e) {
+                        Toast.makeText(LoginActivity.this, "Error parsing response",
+                                Toast.LENGTH_SHORT).show();
+                    }
+                },
+                error -> {
+                    progressLogin.setVisibility(View.GONE);
+                    btnLogin.setEnabled(true);
+                    Toast.makeText(LoginActivity.this, "Network error: " + error.toString(),
                             Toast.LENGTH_SHORT).show();
-                }
-            }
-
+                }) {
             @Override
-            public void onFailure(Call<AuthResponse> call, Throwable t) {
-                progressLogin.setVisibility(View.GONE);
-                btnLogin.setEnabled(true);
-                Toast.makeText(LoginActivity.this, "Network error: " + t.getMessage(),
-                        Toast.LENGTH_SHORT).show();
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("email", email);
+                params.put("password", password);
+                return params;
             }
-        });
+        };
+
+        queue.add(stringRequest);
     }
 }

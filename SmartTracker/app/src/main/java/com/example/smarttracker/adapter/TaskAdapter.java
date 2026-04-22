@@ -11,25 +11,25 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.smarttracker.R;
-import com.example.smarttracker.model.Task;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
 
-    private List<Task> tasks = new ArrayList<>();
+    private JSONArray tasks = new JSONArray();
     private OnTaskToggleListener listener;
 
     public interface OnTaskToggleListener {
-        void onToggle(Task task);
+        void onToggle(int taskId);
     }
 
     public TaskAdapter(OnTaskToggleListener listener) {
         this.listener = listener;
     }
 
-    public void setTasks(List<Task> tasks) {
+    public void setTasks(JSONArray tasks) {
         this.tasks = tasks;
         notifyDataSetChanged();
     }
@@ -44,32 +44,36 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
     @Override
     public void onBindViewHolder(@NonNull TaskViewHolder holder, int position) {
-        Task task = tasks.get(position);
-        String title = task.getHabit() != null ? task.getHabit().getTitle() : "Task";
-        String subtitle = task.getHabit() != null ? task.getHabit().getDescription() : "";
+        try {
+            JSONObject task = tasks.getJSONObject(position);
+            String title = task.getString("title");
+            String description = task.optString("description", "Daily task");
+            boolean completed = task.getInt("completed") == 1;
+            int taskId = task.getInt("id");
 
-        holder.tvTitle.setText(title);
-        holder.tvSubtitle.setText(subtitle != null && !subtitle.isEmpty() ? subtitle : "Daily task");
+            holder.tvTitle.setText(title);
+            holder.tvSubtitle.setText(description.isEmpty() ? "Daily task" : description);
 
-        holder.checkTask.setOnCheckedChangeListener(null);
-        holder.checkTask.setChecked(task.isCompleted());
+            holder.checkTask.setOnCheckedChangeListener(null);
+            holder.checkTask.setChecked(completed);
 
-        if (task.isCompleted()) {
-            holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-        } else {
-            holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
-        }
-
-        holder.checkTask.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (listener != null) {
-                listener.onToggle(task);
+            if (completed) {
+                holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            } else {
+                holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
             }
-        });
+
+            holder.checkTask.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                if (listener != null) listener.onToggle(taskId);
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public int getItemCount() {
-        return tasks.size();
+        return tasks.length();
     }
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
