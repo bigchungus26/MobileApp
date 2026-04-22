@@ -18,9 +18,6 @@ public interface HabitDao {
     @Query("UPDATE habits SET active = 0 WHERE id = :habitId AND user_id = :userId")
     void softDelete(int habitId, int userId);
 
-    @Query("SELECT * FROM habits WHERE id = :habitId AND user_id = :userId LIMIT 1")
-    Habit findById(int habitId, int userId);
-
     @Query("UPDATE habits SET streak = :streak WHERE id = :habitId AND user_id = :userId")
     void updateStreak(int habitId, int userId, int streak);
 }

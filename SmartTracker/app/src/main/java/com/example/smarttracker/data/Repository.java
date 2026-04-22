@@ -109,31 +109,16 @@ public class Repository {
             if ("WEEKLY".equals(h.frequency) && !isMonday) continue;
             if (db.taskDao().getCompletedForHabitOnDate(userId, h.id, today) == null) {
                 db.taskDao().insert(new Task(userId, h.id, today));
+                recalculateStreak(userId, h.id);
             }
         }
     }
 
     private void recalculateStreak(int userId, int habitId) {
-        Habit h = db.habitDao().findById(habitId, userId);
-        if (h == null) return;
-
-        SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
-        Calendar cal = Calendar.getInstance();
-        boolean weekly = "WEEKLY".equals(h.frequency);
-        if (weekly) {
-            int dow = cal.get(Calendar.DAY_OF_WEEK);
-            int offsetToMonday = (dow == Calendar.SUNDAY) ? 6 : dow - Calendar.MONDAY;
-            cal.add(Calendar.DAY_OF_MONTH, -offsetToMonday);
-        }
-
-        int step = weekly ? -7 : -1;
         int streak = 0;
-        for (int i = 0; i < 365; i++) {
-            String date = dateFmt.format(cal.getTime());
-            Integer completed = db.taskDao().getCompletedForHabitOnDate(userId, habitId, date);
+        for (Integer completed : db.taskDao().getCompletionHistory(userId, habitId)) {
             if (completed == null || completed == 0) break;
             streak++;
-            cal.add(Calendar.DAY_OF_MONTH, step);
         }
         db.habitDao().updateStreak(habitId, userId, streak);
     }
