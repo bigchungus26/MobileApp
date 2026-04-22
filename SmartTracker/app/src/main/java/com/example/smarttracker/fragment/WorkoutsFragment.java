@@ -64,6 +64,12 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
         loadWorkouts();
     }
 
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) loadWorkouts();
+    }
+
     private void loadWorkouts() {
         progressWorkouts.setVisibility(View.GONE);
         List<Workout> workouts = repository.getTodayWorkouts(sessionManager.getUserId());

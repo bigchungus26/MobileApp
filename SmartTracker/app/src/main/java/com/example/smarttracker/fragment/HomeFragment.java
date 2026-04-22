@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -13,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.smarttracker.MainActivity;
 import com.example.smarttracker.R;
 import com.example.smarttracker.adapter.TaskAdapter;
 import com.example.smarttracker.data.Repository;
@@ -46,6 +48,20 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
         progressWeekly = view.findViewById(R.id.progressWeekly);
         recyclerTodayTasks = view.findViewById(R.id.recyclerTodayTasks);
 
+        Button btnStartNow = view.findViewById(R.id.btnStartNow);
+        btnStartNow.setOnClickListener(v -> {
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).showAddChooser();
+            }
+        });
+
+        TextView tvSeeAll = view.findViewById(R.id.tvSeeAll);
+        tvSeeAll.setOnClickListener(v -> {
+            com.google.android.material.bottomnavigation.BottomNavigationView nav =
+                    requireActivity().findViewById(R.id.bottomNav);
+            if (nav != null) nav.setSelectedItemId(R.id.nav_habits);
+        });
+
         taskAdapter = new TaskAdapter(this);
         recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerTodayTasks.setAdapter(taskAdapter);
@@ -57,6 +73,12 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
     public void onResume() {
         super.onResume();
         loadData();
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) loadData();
     }
 
     private void loadData() {

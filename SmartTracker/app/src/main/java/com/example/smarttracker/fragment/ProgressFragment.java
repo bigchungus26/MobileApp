@@ -57,6 +57,12 @@ public class ProgressFragment extends Fragment {
         loadProgress();
     }
 
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) loadProgress();
+    }
+
     private void loadProgress() {
         progressLoading.setVisibility(View.GONE);
 

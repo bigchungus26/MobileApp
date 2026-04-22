@@ -88,18 +88,7 @@ public class MainActivity extends AppCompatActivity {
             } else if (activeFragment == workoutsFragment) {
                 workoutsFragment.showAddWorkoutDialog();
             } else {
-                new AlertDialog.Builder(this)
-                        .setTitle("Add New")
-                        .setItems(new String[]{"New Habit", "New Workout"}, (dialog, which) -> {
-                            if (which == 0) {
-                                bottomNav.setSelectedItemId(R.id.nav_habits);
-                                habitsFragment.showAddHabitDialog();
-                            } else {
-                                bottomNav.setSelectedItemId(R.id.nav_workouts);
-                                workoutsFragment.showAddWorkoutDialog();
-                            }
-                        })
-                        .show();
+                showAddChooser();
             }
         });
 
@@ -126,5 +115,20 @@ public class MainActivity extends AppCompatActivity {
                 .show(target)
                 .commit();
         activeFragment = target;
+    }
+
+    public void showAddChooser() {
+        new AlertDialog.Builder(this)
+                .setTitle("Add New")
+                .setItems(new String[]{"New Habit", "New Workout"}, (dialog, which) -> {
+                    if (which == 0) {
+                        bottomNav.setSelectedItemId(R.id.nav_habits);
+                        habitsFragment.showAddHabitDialog();
+                    } else {
+                        bottomNav.setSelectedItemId(R.id.nav_workouts);
+                        workoutsFragment.showAddWorkoutDialog();
+                    }
+                })
+                .show();
     }
 }

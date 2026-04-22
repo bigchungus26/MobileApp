@@ -20,6 +20,15 @@ public interface TaskDao {
     @Query("SELECT completed FROM tasks WHERE id = :taskId AND user_id = :userId LIMIT 1")
     Integer getCompleted(int taskId, int userId);
 
+    @Query("SELECT completed FROM tasks WHERE user_id = :userId AND habit_id = :habitId AND date = :date LIMIT 1")
+    Integer getCompletedForHabitOnDate(int userId, int habitId, String date);
+
+    @Query("SELECT habit_id FROM tasks WHERE id = :taskId LIMIT 1")
+    Integer getHabitIdForTask(int taskId);
+
+    @Query("SELECT completed FROM tasks WHERE user_id = :userId AND habit_id = :habitId ORDER BY date DESC")
+    List<Integer> getCompletionHistory(int userId, int habitId);
+
     @Query("UPDATE tasks SET completed = :completed WHERE id = :taskId AND user_id = :userId")
     void setCompleted(int taskId, int userId, boolean completed);
 

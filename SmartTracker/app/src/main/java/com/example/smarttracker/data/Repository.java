@@ -89,6 +89,7 @@ public class Repository {
     }
 
     public List<TaskView> getTodayTasks(int userId) {
+        ensureTodayTasksExist(userId);
         return db.taskDao().getForUserAndDate(userId, today());
     }
 
@@ -96,6 +97,30 @@ public class Repository {
         Integer current = db.taskDao().getCompleted(taskId, userId);
         if (current == null) return;
         db.taskDao().setCompleted(taskId, userId, current == 0);
+        Integer habitId = db.taskDao().getHabitIdForTask(taskId);
+        if (habitId != null) recalculateStreak(userId, habitId);
+    }
+
+    private void ensureTodayTasksExist(int userId) {
+        String today = today();
+        int dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
+        boolean isMonday = dayOfWeek == Calendar.MONDAY;
+        for (Habit h : db.habitDao().getActiveForUser(userId)) {
+            if ("WEEKLY".equals(h.frequency) && !isMonday) continue;
+            if (db.taskDao().getCompletedForHabitOnDate(userId, h.id, today) == null) {
+                db.taskDao().insert(new Task(userId, h.id, today));
+                recalculateStreak(userId, h.id);
+            }
+        }
+    }
+
+    private void recalculateStreak(int userId, int habitId) {
+        int streak = 0;
+        for (Integer completed : db.taskDao().getCompletionHistory(userId, habitId)) {
+            if (completed == null || completed == 0) break;
+            streak++;
+        }
+        db.habitDao().updateStreak(habitId, userId, streak);
     }
 
     public List<Workout> getTodayWorkouts(int userId) {
@@ -138,6 +163,7 @@ public class Repository {
     }
 
     public ProgressSummary getProgress(int userId) {
+        ensureTodayTasksExist(userId);
         String today = today();
 
         int habitsTotal = db.taskDao().countForDate(userId, today);
@@ -157,11 +183,9 @@ public class Repository {
 
         SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         SimpleDateFormat dayFmt = new SimpleDateFormat("EEEE", Locale.US);
-        String todayStr = today;
 
         for (int i = 0; i < 7; i++) {
             String day = dateFmt.format(cal.getTime());
-            if (day.compareTo(todayStr) > 0) break;
 
             int dt = db.taskDao().countForDate(userId, day);
             int dd = db.taskDao().countCompletedForDate(userId, day);
