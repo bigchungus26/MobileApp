@@ -4,6 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
@@ -46,6 +47,12 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
         progressWeekly = view.findViewById(R.id.progressWeekly);
         recyclerTodayTasks = view.findViewById(R.id.recyclerTodayTasks);
 
+        Button btnStartNow = view.findViewById(R.id.btnStartNow);
+        btnStartNow.setOnClickListener(v -> {
+            View fab = requireActivity().findViewById(R.id.fabAdd);
+            if (fab != null) fab.performClick();
+        });
+
         taskAdapter = new TaskAdapter(this);
         recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerTodayTasks.setAdapter(taskAdapter);
@@ -57,6 +64,12 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
     public void onResume() {
         super.onResume();
         loadData();
+    }
+
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) loadData();
     }
 
     private void loadData() {
