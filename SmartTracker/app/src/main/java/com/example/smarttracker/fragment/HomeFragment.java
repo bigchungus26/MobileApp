@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.smarttracker.MainActivity;
 import com.example.smarttracker.R;
 import com.example.smarttracker.adapter.TaskAdapter;
 import com.example.smarttracker.data.Repository;
@@ -49,8 +50,9 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
 
         Button btnStartNow = view.findViewById(R.id.btnStartNow);
         btnStartNow.setOnClickListener(v -> {
-            View fab = requireActivity().findViewById(R.id.fabAdd);
-            if (fab != null) fab.performClick();
+            if (getActivity() instanceof MainActivity) {
+                ((MainActivity) getActivity()).showAddChooser();
+            }
         });
 
         TextView tvSeeAll = view.findViewById(R.id.tvSeeAll);
