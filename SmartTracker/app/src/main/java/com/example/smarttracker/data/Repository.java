@@ -157,11 +157,9 @@ public class Repository {
 
         SimpleDateFormat dateFmt = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         SimpleDateFormat dayFmt = new SimpleDateFormat("EEEE", Locale.US);
-        String todayStr = today;
 
         for (int i = 0; i < 7; i++) {
             String day = dateFmt.format(cal.getTime());
-            if (day.compareTo(todayStr) > 0) break;
 
             int dt = db.taskDao().countForDate(userId, day);
             int dd = db.taskDao().countCompletedForDate(userId, day);
