@@ -53,6 +53,13 @@ public class HomeFragment extends Fragment implements TaskAdapter.OnTaskToggleLi
             if (fab != null) fab.performClick();
         });
 
+        TextView tvSeeAll = view.findViewById(R.id.tvSeeAll);
+        tvSeeAll.setOnClickListener(v -> {
+            com.google.android.material.bottomnavigation.BottomNavigationView nav =
+                    requireActivity().findViewById(R.id.bottomNav);
+            if (nav != null) nav.setSelectedItemId(R.id.nav_habits);
+        });
+
         taskAdapter = new TaskAdapter(this);
         recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerTodayTasks.setAdapter(taskAdapter);

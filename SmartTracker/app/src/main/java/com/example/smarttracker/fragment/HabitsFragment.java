@@ -64,6 +64,12 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
         loadHabits();
     }
 
+    @Override
+    public void onHiddenChanged(boolean hidden) {
+        super.onHiddenChanged(hidden);
+        if (!hidden) loadHabits();
+    }
+
     private void loadHabits() {
         progressHabits.setVisibility(View.GONE);
         List<Habit> habits = repository.getHabits(sessionManager.getUserId());
