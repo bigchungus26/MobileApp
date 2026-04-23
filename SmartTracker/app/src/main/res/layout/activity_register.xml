@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="?android:colorBackground"
@@ -19,7 +20,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Create Account"
+            android:text="@string/registerTitle"
             android:textColor="@color/primaryAccent"
             android:textSize="32sp"
             android:textStyle="bold" />
@@ -28,7 +29,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Start tracking your progress today"
+            android:text="@string/registerSubtitle"
             android:textColor="?android:textColorSecondary"
             android:textSize="14sp" />
 
@@ -42,7 +43,7 @@
                 android:id="@+id/etName"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Full Name"
+                android:hint="@string/fullNameHint"
                 android:inputType="textPersonName" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -56,7 +57,7 @@
                 android:id="@+id/etEmail"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Email"
+                android:hint="@string/emailHint"
                 android:inputType="textEmailAddress" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -71,7 +72,7 @@
                 android:id="@+id/etPassword"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Password (min 6 characters)"
+                android:hint="@string/passwordMinHint"
                 android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -80,7 +81,7 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="24dp"
-            android:text="Sign Up"
+            android:text="@string/btnRegisterText"
             android:textAllCaps="false"
             android:textStyle="bold"
             android:textSize="16sp"
@@ -95,14 +96,14 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Already have an account? "
+                android:text="@string/haveAccountPrompt"
                 android:textColor="?android:textColorSecondary" />
 
             <TextView
                 android:id="@+id/tvGoToLogin"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Log In"
+                android:text="@string/logInLink"
                 android:textColor="@color/primaryAccent"
                 android:textStyle="bold"
                 android:clickable="true"
