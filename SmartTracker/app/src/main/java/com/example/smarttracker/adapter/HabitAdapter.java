@@ -53,8 +53,13 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
             final int habitId = habit.getInt("id");
 
             holder.tvTitle.setText(title);
-            holder.tvDescription.setText(!description.isEmpty() ? description :
-                    !category.isEmpty() ? category : "No description");
+            if (!description.isEmpty()) {
+                holder.tvDescription.setText(description);
+            } else if (!category.isEmpty()) {
+                holder.tvDescription.setText(category);
+            } else {
+                holder.tvDescription.setText("No description");
+            }
             holder.tvFrequency.setText(frequency);
             holder.tvStreak.setText("Streak: " + streak);
 

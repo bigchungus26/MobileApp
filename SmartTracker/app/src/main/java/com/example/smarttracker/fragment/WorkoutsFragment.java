@@ -93,8 +93,13 @@ public class WorkoutsFragment extends Fragment implements WorkoutAdapter.OnWorko
                         if (!isAdded()) return;
                         progressWorkouts.setVisibility(View.GONE);
                         workoutAdapter.setWorkouts(response);
-                        tvEmpty.setVisibility(response.length() == 0 ? View.VISIBLE : View.GONE);
-                        recyclerWorkouts.setVisibility(response.length() == 0 ? View.GONE : View.VISIBLE);
+                        if (response.length() == 0) {
+                            tvEmpty.setVisibility(View.VISIBLE);
+                            recyclerWorkouts.setVisibility(View.GONE);
+                        } else {
+                            tvEmpty.setVisibility(View.GONE);
+                            recyclerWorkouts.setVisibility(View.VISIBLE);
+                        }
                     }
                 },
                 new Response.ErrorListener() {

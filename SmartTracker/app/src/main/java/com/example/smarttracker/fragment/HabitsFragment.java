@@ -93,8 +93,13 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                         if (!isAdded()) return;
                         progressHabits.setVisibility(View.GONE);
                         habitAdapter.setHabits(response);
-                        tvEmpty.setVisibility(response.length() == 0 ? View.VISIBLE : View.GONE);
-                        recyclerHabits.setVisibility(response.length() == 0 ? View.GONE : View.VISIBLE);
+                        if (response.length() == 0) {
+                            tvEmpty.setVisibility(View.VISIBLE);
+                            recyclerHabits.setVisibility(View.GONE);
+                        } else {
+                            tvEmpty.setVisibility(View.GONE);
+                            recyclerHabits.setVisibility(View.VISIBLE);
+                        }
                     }
                 },
                 new Response.ErrorListener() {
@@ -135,8 +140,12 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
 
                         final String description = etDescription.getText().toString().trim();
                         final String category = etCategory.getText().toString().trim();
-                        final String frequency = rgFrequency.getCheckedRadioButtonId() == R.id.rbWeekly
-                                ? "WEEKLY" : "DAILY";
+                        final String frequency;
+                        if (rgFrequency.getCheckedRadioButtonId() == R.id.rbWeekly) {
+                            frequency = "WEEKLY";
+                        } else {
+                            frequency = "DAILY";
+                        }
 
                         String url = BASE_URL + "addhabit.php";
 
