@@ -53,7 +53,11 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             final int taskId = task.getInt("id");
 
             holder.tvTitle.setText(title);
-            holder.tvSubtitle.setText(description.isEmpty() ? "Daily task" : description);
+            if (description.isEmpty()) {
+                holder.tvSubtitle.setText("Daily task");
+            } else {
+                holder.tvSubtitle.setText(description);
+            }
 
             holder.checkTask.setOnCheckedChangeListener(null);
             holder.checkTask.setChecked(completed);
