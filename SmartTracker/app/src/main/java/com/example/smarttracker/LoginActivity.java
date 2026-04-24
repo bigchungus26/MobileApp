@@ -1,6 +1,7 @@
 package com.example.smarttracker;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -16,7 +17,6 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONException;
@@ -29,18 +29,23 @@ public class LoginActivity extends AppCompatActivity {
 
     private static final String URL = "http://10.0.2.2/smarttracker/login.php";
 
+    private static final String PREF_NAME = "smarttracker";
+    private static final String KEY_USER_ID = "user_id";
+    private static final String KEY_USER_NAME = "user_name";
+    private static final String KEY_USER_EMAIL = "user_email";
+
     TextInputEditText etEmail, etPassword;
     Button btnLogin;
     ProgressBar progressLogin;
     TextView tvGoToRegister;
-    SessionManager sessionManager;
+    SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        sessionManager = new SessionManager(this);
-        if (sessionManager.isLoggedIn()) {
+        prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        if (prefs.getInt(KEY_USER_ID, -1) != -1) {
             startActivity(new Intent(this, MainActivity.class));
             finish();
             return;
@@ -70,8 +75,8 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void login() {
-        String email = etEmail.getText().toString().trim();
-        String password = etPassword.getText().toString().trim();
+        final String email = etEmail.getText().toString().trim();
+        final String password = etPassword.getText().toString().trim();
 
         if (email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
@@ -91,11 +96,11 @@ public class LoginActivity extends AppCompatActivity {
                         try {
                             JSONObject json = new JSONObject(response);
                             if (json.getBoolean("success")) {
-                                sessionManager.saveSession(
-                                        json.getInt("userId"),
-                                        json.getString("name"),
-                                        json.getString("email")
-                                );
+                                prefs.edit()
+                                        .putInt(KEY_USER_ID, json.getInt("userId"))
+                                        .putString(KEY_USER_NAME, json.getString("name"))
+                                        .putString(KEY_USER_EMAIL, json.getString("email"))
+                                        .apply();
                                 startActivity(new Intent(LoginActivity.this, MainActivity.class));
                                 finish();
                             } else {

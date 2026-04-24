@@ -1,6 +1,7 @@
 package com.example.smarttracker;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -16,7 +17,6 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONException;
@@ -29,18 +29,23 @@ public class RegisterActivity extends AppCompatActivity {
 
     private static final String URL = "http://10.0.2.2/smarttracker/register.php";
 
+    private static final String PREF_NAME = "smarttracker";
+    private static final String KEY_USER_ID = "user_id";
+    private static final String KEY_USER_NAME = "user_name";
+    private static final String KEY_USER_EMAIL = "user_email";
+
     TextInputEditText etName, etEmail, etPassword;
     Button btnRegister;
     ProgressBar progressRegister;
     TextView tvGoToLogin;
-    SessionManager sessionManager;
+    SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_register);
 
-        sessionManager = new SessionManager(this);
+        prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
 
         etName = (TextInputEditText) findViewById(R.id.etName);
         etEmail = (TextInputEditText) findViewById(R.id.etEmail);
@@ -65,9 +70,9 @@ public class RegisterActivity extends AppCompatActivity {
     }
 
     private void register() {
-        String name = etName.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
-        String password = etPassword.getText().toString().trim();
+        final String name = etName.getText().toString().trim();
+        final String email = etEmail.getText().toString().trim();
+        final String password = etPassword.getText().toString().trim();
 
         if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
@@ -92,11 +97,11 @@ public class RegisterActivity extends AppCompatActivity {
                         try {
                             JSONObject json = new JSONObject(response);
                             if (json.getBoolean("success")) {
-                                sessionManager.saveSession(
-                                        json.getInt("userId"),
-                                        json.getString("name"),
-                                        json.getString("email")
-                                );
+                                prefs.edit()
+                                        .putInt(KEY_USER_ID, json.getInt("userId"))
+                                        .putString(KEY_USER_NAME, json.getString("name"))
+                                        .putString(KEY_USER_EMAIL, json.getString("email"))
+                                        .apply();
                                 startActivity(new Intent(RegisterActivity.this, MainActivity.class)
                                         .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
                                 finish();

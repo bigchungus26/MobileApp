@@ -4,39 +4,34 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
-import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.example.smarttracker.adapter.TaskAdapter;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationBarView;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Iterator;
 
-public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTaskToggleListener {
+public class ProgressActivity extends AppCompatActivity {
 
     private static final String BASE_URL = "http://10.0.2.2/smarttracker/";
 
@@ -48,10 +43,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     BottomNavigationView bottomNav;
     FloatingActionButton fabAdd;
     ImageView ivProfile;
-    TextView tvUserName, tvHabitsCount, tvWorkoutCount, tvProgressText;
-    ProgressBar progressWeekly;
-    RecyclerView recyclerTodayTasks;
-    TaskAdapter taskAdapter;
+    TextView tvUserName;
+    TextView tvProgressHabits, tvProgressWorkouts;
+    TextView tvWeeklyPercent, tvWeeklyMessage;
+    ProgressBar progressWeeklyBar, progressLoading;
+    LinearLayout layoutDailyBars;
     RequestQueue queue;
     SharedPreferences prefs;
 
@@ -66,69 +62,48 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             return;
         }
 
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_progress);
 
         queue = Volley.newRequestQueue(this);
 
         tvUserName = (TextView) findViewById(R.id.tvUserName);
-        tvHabitsCount = (TextView) findViewById(R.id.tvHabitsCount);
-        tvWorkoutCount = (TextView) findViewById(R.id.tvWorkoutCount);
-        tvProgressText = (TextView) findViewById(R.id.tvProgressText);
-        progressWeekly = (ProgressBar) findViewById(R.id.progressWeekly);
-        recyclerTodayTasks = (RecyclerView) findViewById(R.id.recyclerTodayTasks);
+        tvProgressHabits = (TextView) findViewById(R.id.tvProgressHabits);
+        tvProgressWorkouts = (TextView) findViewById(R.id.tvProgressWorkouts);
+        tvWeeklyPercent = (TextView) findViewById(R.id.tvWeeklyPercent);
+        tvWeeklyMessage = (TextView) findViewById(R.id.tvWeeklyMessage);
+        progressWeeklyBar = (ProgressBar) findViewById(R.id.progressWeeklyBar);
+        progressLoading = (ProgressBar) findViewById(R.id.progressLoading);
+        layoutDailyBars = (LinearLayout) findViewById(R.id.layoutDailyBars);
         bottomNav = (BottomNavigationView) findViewById(R.id.bottomNav);
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
 
-        Button btnStartNow = (Button) findViewById(R.id.btnStartNow);
-        TextView tvSeeAll = (TextView) findViewById(R.id.tvSeeAll);
-
         tvUserName.setText(prefs.getString(KEY_USER_NAME, "User"));
 
-        taskAdapter = new TaskAdapter(this);
-        recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(this));
-        recyclerTodayTasks.setAdapter(taskAdapter);
-
-        bottomNav.setSelectedItemId(R.id.nav_home);
+        bottomNav.setSelectedItemId(R.id.nav_progress);
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
                 int id = item.getItemId();
-                if (id == R.id.nav_home) {
+                if (id == R.id.nav_progress) {
+                    return true;
+                } else if (id == R.id.nav_home) {
+                    startActivity(new Intent(ProgressActivity.this, MainActivity.class));
+                    overridePendingTransition(0, 0);
+                    finish();
                     return true;
                 } else if (id == R.id.nav_habits) {
-                    startActivity(new Intent(MainActivity.this, HabitsActivity.class));
+                    startActivity(new Intent(ProgressActivity.this, HabitsActivity.class));
                     overridePendingTransition(0, 0);
                     finish();
                     return true;
                 } else if (id == R.id.nav_workouts) {
-                    startActivity(new Intent(MainActivity.this, WorkoutsActivity.class));
-                    overridePendingTransition(0, 0);
-                    finish();
-                    return true;
-                } else if (id == R.id.nav_progress) {
-                    startActivity(new Intent(MainActivity.this, ProgressActivity.class));
+                    startActivity(new Intent(ProgressActivity.this, WorkoutsActivity.class));
                     overridePendingTransition(0, 0);
                     finish();
                     return true;
                 }
                 return false;
-            }
-        });
-
-        btnStartNow.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showAddChooser();
-            }
-        });
-
-        tvSeeAll.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this, HabitsActivity.class));
-                overridePendingTransition(0, 0);
-                finish();
             }
         });
 
@@ -142,14 +117,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new AlertDialog.Builder(MainActivity.this)
+                new AlertDialog.Builder(ProgressActivity.this)
                         .setTitle("Account")
                         .setMessage("Logged in as " + prefs.getString(KEY_USER_EMAIL, ""))
                         .setPositiveButton("Log Out", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 prefs.edit().clear().apply();
-                                startActivity(new Intent(MainActivity.this, LoginActivity.class)
+                                startActivity(new Intent(ProgressActivity.this, LoginActivity.class)
                                         .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
                                 finish();
                             }
@@ -164,37 +139,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     protected void onResume() {
         super.onResume();
         if (isFinishing()) return;
-        loadData();
-    }
-
-    private void loadData() {
-        loadTasks();
         loadProgress();
     }
 
-    private void loadTasks() {
-        int userId = prefs.getInt(KEY_USER_ID, -1);
-        String url = BASE_URL + "gettasks.php?user_id=" + userId;
-
-        JsonArrayRequest request = new JsonArrayRequest(Request.Method.GET, url, null,
-                new Response.Listener<JSONArray>() {
-                    @Override
-                    public void onResponse(JSONArray response) {
-                        taskAdapter.setTasks(response);
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(MainActivity.this,
-                                "Failed to load tasks", Toast.LENGTH_SHORT).show();
-                    }
-                });
-
-        queue.add(request);
-    }
-
     private void loadProgress() {
+        progressLoading.setVisibility(View.VISIBLE);
         int userId = prefs.getInt(KEY_USER_ID, -1);
         String url = BASE_URL + "getprogress.php?user_id=" + userId;
 
@@ -202,26 +151,54 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        progressLoading.setVisibility(View.GONE);
+
                         try {
                             JSONObject json = new JSONObject(response);
+
                             long hDone = json.getLong("habitsCompleted");
                             long hTotal = json.getLong("habitsTotal");
                             long wDone = json.getLong("workoutsCompleted");
                             long wTotal = json.getLong("workoutsTotal");
                             double pct = json.getDouble("weeklyProgressPercent");
 
-                            tvHabitsCount.setText(hDone + " / " + hTotal);
-                            tvWorkoutCount.setText(wDone + " / " + wTotal);
-                            progressWeekly.setProgress((int) pct);
+                            tvProgressHabits.setText(hDone + " / " + hTotal);
+                            tvProgressWorkouts.setText(wDone + " / " + wTotal);
+
+                            int pctInt = (int) pct;
+                            tvWeeklyPercent.setText(pctInt + "%");
+                            progressWeeklyBar.setProgress(pctInt);
 
                             if (pct >= 80) {
-                                tvProgressText.setText("Amazing! You're crushing it this week!");
+                                tvWeeklyMessage.setText("Outstanding! You're crushing your goals!");
                             } else if (pct >= 50) {
-                                tvProgressText.setText("You're doing great. Keep your streak going.");
+                                tvWeeklyMessage.setText("Great progress! Keep the momentum going.");
                             } else if (pct > 0) {
-                                tvProgressText.setText("Good start! Keep pushing to hit your goals.");
+                                tvWeeklyMessage.setText("You've started - now push toward 50%!");
                             } else {
-                                tvProgressText.setText("Start completing tasks to see your progress.");
+                                tvWeeklyMessage.setText("Complete some tasks to see your progress here.");
+                            }
+
+                            layoutDailyBars.removeAllViews();
+                            JSONObject daily = json.getJSONObject("dailyProgress");
+                            Iterator<String> keys = daily.keys();
+
+                            while (keys.hasNext()) {
+                                String dayName = keys.next();
+                                double dayPct = daily.getDouble(dayName);
+
+                                View barView = LayoutInflater.from(ProgressActivity.this)
+                                        .inflate(R.layout.item_daily_bar, layoutDailyBars, false);
+
+                                TextView tvDay = (TextView) barView.findViewById(R.id.tvDayName);
+                                ProgressBar progressDay = (ProgressBar) barView.findViewById(R.id.progressDay);
+                                TextView tvPercent = (TextView) barView.findViewById(R.id.tvDayPercent);
+
+                                tvDay.setText(dayName.substring(0, 3).toUpperCase());
+                                progressDay.setProgress((int) dayPct);
+                                tvPercent.setText((int) dayPct + "%");
+
+                                layoutDailyBars.addView(barView);
                             }
                         } catch (JSONException e) {
                             e.printStackTrace();
@@ -231,42 +208,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        tvHabitsCount.setText("0 / 0");
-                        tvWorkoutCount.setText("0 / 0");
+                        progressLoading.setVisibility(View.GONE);
+                        Toast.makeText(ProgressActivity.this,
+                                "Failed to load progress", Toast.LENGTH_SHORT).show();
                     }
                 });
-
-        queue.add(request);
-    }
-
-    @Override
-    public void onToggle(int taskId) {
-        final int userId = prefs.getInt(KEY_USER_ID, -1);
-        final int tId = taskId;
-        String url = BASE_URL + "toggletask.php";
-
-        StringRequest request = new StringRequest(Request.Method.POST, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        loadData();
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Toast.makeText(MainActivity.this,
-                                "Failed to update task", Toast.LENGTH_SHORT).show();
-                    }
-                }) {
-            @Override
-            protected Map<String, String> getParams() {
-                Map<String, String> params = new HashMap<>();
-                params.put("task_id", String.valueOf(tId));
-                params.put("user_id", String.valueOf(userId));
-                return params;
-            }
-        };
 
         queue.add(request);
     }
@@ -278,12 +224,12 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         if (which == 0) {
-                            startActivity(new Intent(MainActivity.this, HabitsActivity.class)
+                            startActivity(new Intent(ProgressActivity.this, HabitsActivity.class)
                                     .putExtra("openAddDialog", true));
                             overridePendingTransition(0, 0);
                             finish();
                         } else {
-                            startActivity(new Intent(MainActivity.this, WorkoutsActivity.class)
+                            startActivity(new Intent(ProgressActivity.this, WorkoutsActivity.class)
                                     .putExtra("openAddDialog", true));
                             overridePendingTransition(0, 0);
                             finish();
