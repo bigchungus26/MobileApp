@@ -1,19 +1,19 @@
-package com.example.smarttracker.fragment;
+package com.example.smarttracker;
 
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
-import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
-import androidx.fragment.app.Fragment;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -24,9 +24,11 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonArrayRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
-import com.example.smarttracker.R;
 import com.example.smarttracker.adapter.HabitAdapter;
 import com.example.smarttracker.util.SessionManager;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.textfield.TextInputEditText;
 
 import org.json.JSONArray;
@@ -34,51 +36,113 @@ import org.json.JSONArray;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDeleteListener {
+public class HabitsActivity extends AppCompatActivity implements HabitAdapter.OnHabitDeleteListener {
 
     private static final String BASE_URL = "http://10.0.2.2/smarttracker/";
 
-    private RecyclerView recyclerHabits;
-    private HabitAdapter habitAdapter;
-    private ProgressBar progressHabits;
-    private TextView tvEmpty;
-    private RequestQueue queue;
-    private SessionManager sessionManager;
-
-    @Nullable
-    @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
-        return inflater.inflate(R.layout.fragment_habits, container, false);
-    }
+    TextView tvUserName, tvEmpty;
+    ImageView ivProfile;
+    ProgressBar progressHabits;
+    RecyclerView recyclerHabits;
+    HabitAdapter habitAdapter;
+    FloatingActionButton fabAdd;
+    BottomNavigationView bottomNav;
+    RequestQueue queue;
+    SessionManager sessionManager;
 
     @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-        queue = Volley.newRequestQueue(requireContext());
-        sessionManager = new SessionManager(requireContext());
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-        recyclerHabits = (RecyclerView) view.findViewById(R.id.recyclerHabits);
-        progressHabits = (ProgressBar) view.findViewById(R.id.progressHabits);
-        tvEmpty = (TextView) view.findViewById(R.id.tvEmptyHabits);
+        sessionManager = new SessionManager(this);
+        if (!sessionManager.isLoggedIn()) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
+        setContentView(R.layout.activity_habits);
+
+        queue = Volley.newRequestQueue(this);
+
+        tvUserName = (TextView) findViewById(R.id.tvUserName);
+        ivProfile = (ImageView) findViewById(R.id.ivProfile);
+        progressHabits = (ProgressBar) findViewById(R.id.progressHabits);
+        tvEmpty = (TextView) findViewById(R.id.tvEmptyHabits);
+        recyclerHabits = (RecyclerView) findViewById(R.id.recyclerHabits);
+        fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
+        bottomNav = (BottomNavigationView) findViewById(R.id.bottomNav);
+
+        tvUserName.setText(sessionManager.getUserName());
 
         habitAdapter = new HabitAdapter(this);
-        recyclerHabits.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recyclerHabits.setLayoutManager(new LinearLayoutManager(this));
         recyclerHabits.setAdapter(habitAdapter);
 
+        bottomNav.setSelectedItemId(R.id.nav_habits);
+        bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
+            @Override
+            public boolean onNavigationItemSelected(MenuItem item) {
+                int id = item.getItemId();
+                if (id == R.id.nav_habits) {
+                    return true;
+                } else if (id == R.id.nav_home) {
+                    startActivity(new Intent(HabitsActivity.this, MainActivity.class));
+                    finish();
+                    return false;
+                } else if (id == R.id.nav_workouts) {
+                    startActivity(new Intent(HabitsActivity.this, WorkoutsActivity.class));
+                    finish();
+                    return false;
+                } else if (id == R.id.nav_progress) {
+                    startActivity(new Intent(HabitsActivity.this, ProgressActivity.class));
+                    finish();
+                    return false;
+                }
+                return false;
+            }
+        });
+
+        fabAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showAddHabitDialog();
+            }
+        });
+
+        ivProfile.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                new AlertDialog.Builder(HabitsActivity.this)
+                        .setTitle("Account")
+                        .setMessage("Logged in as " + sessionManager.getUserEmail())
+                        .setPositiveButton("Log Out", new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                sessionManager.logout();
+                                startActivity(new Intent(HabitsActivity.this, LoginActivity.class)
+                                        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                                finish();
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+
         loadHabits();
+
+        if (getIntent().getBooleanExtra("openAddDialog", false)) {
+            showAddHabitDialog();
+        }
     }
 
     @Override
-    public void onResume() {
+    protected void onResume() {
         super.onResume();
-        loadHabits();
-    }
-
-    @Override
-    public void onHiddenChanged(boolean hidden) {
-        super.onHiddenChanged(hidden);
-        if (!hidden) loadHabits();
+        if (sessionManager != null && sessionManager.isLoggedIn()) {
+            loadHabits();
+        }
     }
 
     private void loadHabits() {
@@ -90,7 +154,6 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                 new Response.Listener<JSONArray>() {
                     @Override
                     public void onResponse(JSONArray response) {
-                        if (!isAdded()) return;
                         progressHabits.setVisibility(View.GONE);
                         habitAdapter.setHabits(response);
                         if (response.length() == 0) {
@@ -105,41 +168,39 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                 new Response.ErrorListener() {
                     @Override
                     public void onErrorResponse(VolleyError error) {
-                        if (isAdded()) {
-                            progressHabits.setVisibility(View.GONE);
-                            Toast.makeText(requireContext(),
-                                    "Failed to load habits", Toast.LENGTH_SHORT).show();
-                        }
+                        progressHabits.setVisibility(View.GONE);
+                        Toast.makeText(HabitsActivity.this,
+                                "Failed to load habits", Toast.LENGTH_SHORT).show();
                     }
                 });
 
         queue.add(request);
     }
 
-    public void showAddHabitDialog() {
-        View dialogView = LayoutInflater.from(requireContext())
-                .inflate(R.layout.dialog_add_habit, null);
+    private void showAddHabitDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_add_habit, null);
 
         final TextInputEditText etTitle = (TextInputEditText) dialogView.findViewById(R.id.etHabitTitle);
         final TextInputEditText etDescription = (TextInputEditText) dialogView.findViewById(R.id.etHabitDescription);
         final TextInputEditText etCategory = (TextInputEditText) dialogView.findViewById(R.id.etHabitCategory);
         final RadioGroup rgFrequency = (RadioGroup) dialogView.findViewById(R.id.rgFrequency);
 
-        new AlertDialog.Builder(requireContext())
+        new AlertDialog.Builder(this)
                 .setTitle("New Habit")
                 .setView(dialogView)
                 .setPositiveButton("Create", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        String title = etTitle.getText().toString().trim();
+                        final String title = etTitle.getText().toString().trim();
                         if (title.isEmpty()) {
-                            Toast.makeText(requireContext(),
+                            Toast.makeText(HabitsActivity.this,
                                     "Title is required", Toast.LENGTH_SHORT).show();
                             return;
                         }
 
                         final String description = etDescription.getText().toString().trim();
                         final String category = etCategory.getText().toString().trim();
+
                         final String frequency;
                         if (rgFrequency.getCheckedRadioButtonId() == R.id.rbWeekly) {
                             frequency = "WEEKLY";
@@ -153,20 +214,16 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                                 new Response.Listener<String>() {
                                     @Override
                                     public void onResponse(String response) {
-                                        if (isAdded()) {
-                                            Toast.makeText(requireContext(),
-                                                    "Habit created!", Toast.LENGTH_SHORT).show();
-                                            loadHabits();
-                                        }
+                                        Toast.makeText(HabitsActivity.this,
+                                                "Habit created!", Toast.LENGTH_SHORT).show();
+                                        loadHabits();
                                     }
                                 },
                                 new Response.ErrorListener() {
                                     @Override
                                     public void onErrorResponse(VolleyError error) {
-                                        if (isAdded()) {
-                                            Toast.makeText(requireContext(),
-                                                    "Network error", Toast.LENGTH_SHORT).show();
-                                        }
+                                        Toast.makeText(HabitsActivity.this,
+                                                "Network error", Toast.LENGTH_SHORT).show();
                                     }
                                 }) {
                             @Override
@@ -189,8 +246,8 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
     }
 
     @Override
-    public void onDelete(int habitId, String title) {
-        new AlertDialog.Builder(requireContext())
+    public void onDelete(final int habitId, String title) {
+        new AlertDialog.Builder(this)
                 .setTitle("Delete Habit")
                 .setMessage("Remove \"" + title + "\"?")
                 .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
@@ -202,16 +259,14 @@ public class HabitsFragment extends Fragment implements HabitAdapter.OnHabitDele
                                 new Response.Listener<String>() {
                                     @Override
                                     public void onResponse(String response) {
-                                        if (isAdded()) loadHabits();
+                                        loadHabits();
                                     }
                                 },
                                 new Response.ErrorListener() {
                                     @Override
                                     public void onErrorResponse(VolleyError error) {
-                                        if (isAdded()) {
-                                            Toast.makeText(requireContext(),
-                                                    "Failed to delete", Toast.LENGTH_SHORT).show();
-                                        }
+                                        Toast.makeText(HabitsActivity.this,
+                                                "Failed to delete", Toast.LENGTH_SHORT).show();
                                     }
                                 }) {
                             @Override

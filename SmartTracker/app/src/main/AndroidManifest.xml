@@ -25,6 +25,9 @@
         </activity>
         <activity android:name=".RegisterActivity" android:exported="false" android:screenOrientation="portrait" />
         <activity android:name=".MainActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".HabitsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".WorkoutsActivity" android:exported="false" android:screenOrientation="portrait" />
+        <activity android:name=".ProgressActivity" android:exported="false" android:screenOrientation="portrait" />
     </application>
 
 </manifest>
