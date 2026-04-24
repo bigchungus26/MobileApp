@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "shell": "bash",
+            "command": "{ ! git diff --quiet || ! git diff --cached --quiet; } && git add -u && git commit -m 'Auto-commit from Claude Code session' && git push"
+          }
+        ]
+      }
+    ]
+  }
+}
