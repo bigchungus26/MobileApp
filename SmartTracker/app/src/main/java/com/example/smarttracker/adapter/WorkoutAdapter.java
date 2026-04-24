@@ -5,6 +5,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
@@ -12,15 +13,15 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.smarttracker.R;
-import com.example.smarttracker.data.Workout;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutViewHolder> {
 
-    private List<Workout> workouts = new ArrayList<>();
-    private final OnWorkoutActionListener listener;
+    private JSONArray workouts = new JSONArray();
+    private OnWorkoutActionListener listener;
 
     public interface OnWorkoutActionListener {
         void onToggle(int workoutId);
@@ -31,7 +32,7 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         this.listener = listener;
     }
 
-    public void setWorkouts(List<Workout> workouts) {
+    public void setWorkouts(JSONArray workouts) {
         this.workouts = workouts;
         notifyDataSetChanged();
     }
@@ -46,34 +47,50 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
 
     @Override
     public void onBindViewHolder(@NonNull WorkoutViewHolder holder, int position) {
-        Workout workout = workouts.get(position);
+        try {
+            JSONObject workout = workouts.getJSONObject(position);
+            final String title = workout.getString("title");
+            int duration = workout.optInt("duration_minutes", 0);
+            int calories = workout.optInt("calories", 0);
+            String intensity = workout.optString("intensity", "MEDIUM");
+            boolean completed = workout.getInt("completed") == 1;
+            final int workoutId = workout.getInt("id");
 
-        holder.tvTitle.setText(workout.title);
-        holder.tvDuration.setText(workout.durationMinutes + " min");
-        holder.tvCalories.setText(workout.calories + " cal");
-        holder.tvIntensity.setText(workout.intensity);
+            holder.tvTitle.setText(title);
+            holder.tvDuration.setText(duration + " min");
+            holder.tvCalories.setText(calories + " cal");
+            holder.tvIntensity.setText(intensity);
 
-        holder.checkWorkout.setOnCheckedChangeListener(null);
-        holder.checkWorkout.setChecked(workout.completed);
+            holder.checkWorkout.setOnCheckedChangeListener(null);
+            holder.checkWorkout.setChecked(completed);
 
-        if (workout.completed) {
-            holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-        } else {
-            holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+            if (completed) {
+                holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+            } else {
+                holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+            }
+
+            holder.checkWorkout.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    if (listener != null) listener.onToggle(workoutId);
+                }
+            });
+
+            holder.ivDelete.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (listener != null) listener.onDelete(workoutId, title);
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-
-        holder.checkWorkout.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (listener != null) listener.onToggle(workout.id);
-        });
-
-        holder.ivDelete.setOnClickListener(v -> {
-            if (listener != null) listener.onDelete(workout.id, workout.title);
-        });
     }
 
     @Override
     public int getItemCount() {
-        return workouts.size();
+        return workouts.length();
     }
 
     static class WorkoutViewHolder extends RecyclerView.ViewHolder {
@@ -83,12 +100,12 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
 
         WorkoutViewHolder(@NonNull View itemView) {
             super(itemView);
-            checkWorkout = itemView.findViewById(R.id.checkWorkout);
-            tvTitle = itemView.findViewById(R.id.tvWorkoutTitle);
-            tvDuration = itemView.findViewById(R.id.tvWorkoutDuration);
-            tvCalories = itemView.findViewById(R.id.tvWorkoutCalories);
-            tvIntensity = itemView.findViewById(R.id.tvWorkoutIntensity);
-            ivDelete = itemView.findViewById(R.id.ivDeleteWorkout);
+            checkWorkout = (CheckBox) itemView.findViewById(R.id.checkWorkout);
+            tvTitle = (TextView) itemView.findViewById(R.id.tvWorkoutTitle);
+            tvDuration = (TextView) itemView.findViewById(R.id.tvWorkoutDuration);
+            tvCalories = (TextView) itemView.findViewById(R.id.tvWorkoutCalories);
+            tvIntensity = (TextView) itemView.findViewById(R.id.tvWorkoutIntensity);
+            ivDelete = (ImageView) itemView.findViewById(R.id.ivDeleteWorkout);
         }
     }
 }

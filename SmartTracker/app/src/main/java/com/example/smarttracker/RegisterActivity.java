@@ -4,68 +4,64 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-import com.example.smarttracker.data.Repository;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.textfield.TextInputEditText;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+
 public class RegisterActivity extends AppCompatActivity {
 
-    //👉 views + helpers for the sign-up screen
+    private static final String URL = "http://10.0.2.2/smarttracker/register.php";
+
     TextInputEditText etName, etEmail, etPassword;
     Button btnRegister;
+    ProgressBar progressRegister;
     TextView tvGoToLogin;
     SessionManager sessionManager;
-    Repository repository;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        EdgeToEdge.enable(RegisterActivity.this);
         setContentView(R.layout.activity_register);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
-        sessionManager = new SessionManager(RegisterActivity.this);
-        repository = Repository.get(RegisterActivity.this);
+        sessionManager = new SessionManager(this);
 
-        //✅ here's the view wiring — explicit casts 🧵
         etName = (TextInputEditText) findViewById(R.id.etName);
         etEmail = (TextInputEditText) findViewById(R.id.etEmail);
         etPassword = (TextInputEditText) findViewById(R.id.etPassword);
         btnRegister = (Button) findViewById(R.id.btnRegister);
+        progressRegister = (ProgressBar) findViewById(R.id.progressRegister);
         tvGoToLogin = (TextView) findViewById(R.id.tvGoToLogin);
 
-        //👉 register button — lambda flavour 🌮
-        btnRegister.setOnClickListener(v -> register());
-        /* anonymous version:
         btnRegister.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { register(); }
+            @Override
+            public void onClick(View v) {
+                register();
+            }
         });
-        */
 
-        //✅ "back to login" link — anonymous inner class flavour 🍦
         tvGoToLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 finish();
             }
         });
-        /* lambda version:
-        tvGoToLogin.setOnClickListener(v -> finish());
-        */
     }
 
     private void register() {
@@ -74,23 +70,65 @@ public class RegisterActivity extends AppCompatActivity {
         String password = etPassword.getText().toString().trim();
 
         if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
-            Toast.makeText(RegisterActivity.this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             return;
         }
+
         if (password.length() < 6) {
-            Toast.makeText(RegisterActivity.this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        Repository.AuthResult result = repository.register(name, email, password);
-        if (!result.success) {
-            Toast.makeText(RegisterActivity.this, result.message, Toast.LENGTH_SHORT).show();
-            return;
-        }
+        btnRegister.setEnabled(false);
+        progressRegister.setVisibility(View.VISIBLE);
 
-        sessionManager.saveSession(result.userId, result.name, result.email);
-        startActivity(new Intent(RegisterActivity.this, MainActivity.class)
-                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-        finish();
+        RequestQueue queue = Volley.newRequestQueue(this);
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, URL,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        progressRegister.setVisibility(View.GONE);
+                        btnRegister.setEnabled(true);
+                        try {
+                            JSONObject json = new JSONObject(response);
+                            if (json.getBoolean("success")) {
+                                sessionManager.saveSession(
+                                        json.getInt("userId"),
+                                        json.getString("name"),
+                                        json.getString("email")
+                                );
+                                startActivity(new Intent(RegisterActivity.this, MainActivity.class)
+                                        .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+                                finish();
+                            } else {
+                                Toast.makeText(RegisterActivity.this,
+                                        json.getString("message"), Toast.LENGTH_SHORT).show();
+                            }
+                        } catch (JSONException e) {
+                            Toast.makeText(RegisterActivity.this,
+                                    "Error parsing response", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        progressRegister.setVisibility(View.GONE);
+                        btnRegister.setEnabled(true);
+                        Toast.makeText(RegisterActivity.this,
+                                "Network error: " + error.toString(), Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("name", name);
+                params.put("email", email);
+                params.put("password", password);
+                return params;
+            }
+        };
+
+        queue.add(stringRequest);
     }
 }

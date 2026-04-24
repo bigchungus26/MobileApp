@@ -7,24 +7,35 @@ import android.view.ViewGroup;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.R;
-import com.example.smarttracker.data.Repository;
 import com.example.smarttracker.util.SessionManager;
 
-import java.util.Map;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.Iterator;
 
 public class ProgressFragment extends Fragment {
+
+    private static final String BASE_URL = "http://10.0.2.2/smarttracker/";
 
     private TextView tvProgressHabits, tvProgressWorkouts;
     private TextView tvWeeklyPercent, tvWeeklyMessage;
     private ProgressBar progressWeeklyBar, progressLoading;
     private LinearLayout layoutDailyBars;
-    private Repository repository;
+    private RequestQueue queue;
     private SessionManager sessionManager;
 
     @Nullable
@@ -37,16 +48,16 @@ public class ProgressFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        repository = Repository.get(requireContext());
+        queue = Volley.newRequestQueue(requireContext());
         sessionManager = new SessionManager(requireContext());
 
-        tvProgressHabits = view.findViewById(R.id.tvProgressHabits);
-        tvProgressWorkouts = view.findViewById(R.id.tvProgressWorkouts);
-        tvWeeklyPercent = view.findViewById(R.id.tvWeeklyPercent);
-        tvWeeklyMessage = view.findViewById(R.id.tvWeeklyMessage);
-        progressWeeklyBar = view.findViewById(R.id.progressWeeklyBar);
-        progressLoading = view.findViewById(R.id.progressLoading);
-        layoutDailyBars = view.findViewById(R.id.layoutDailyBars);
+        tvProgressHabits = (TextView) view.findViewById(R.id.tvProgressHabits);
+        tvProgressWorkouts = (TextView) view.findViewById(R.id.tvProgressWorkouts);
+        tvWeeklyPercent = (TextView) view.findViewById(R.id.tvWeeklyPercent);
+        tvWeeklyMessage = (TextView) view.findViewById(R.id.tvWeeklyMessage);
+        progressWeeklyBar = (ProgressBar) view.findViewById(R.id.progressWeeklyBar);
+        progressLoading = (ProgressBar) view.findViewById(R.id.progressLoading);
+        layoutDailyBars = (LinearLayout) view.findViewById(R.id.layoutDailyBars);
 
         loadProgress();
     }
@@ -64,41 +75,81 @@ public class ProgressFragment extends Fragment {
     }
 
     private void loadProgress() {
-        progressLoading.setVisibility(View.GONE);
+        progressLoading.setVisibility(View.VISIBLE);
+        int userId = sessionManager.getUserId();
+        String url = BASE_URL + "getprogress.php?user_id=" + userId;
 
-        Repository.ProgressSummary p = repository.getProgress(sessionManager.getUserId());
+        StringRequest request = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        if (!isAdded()) return;
+                        progressLoading.setVisibility(View.GONE);
 
-        tvProgressHabits.setText(p.habitsCompleted + " / " + p.habitsTotal);
-        tvProgressWorkouts.setText(p.workoutsCompleted + " / " + p.workoutsTotal);
+                        try {
+                            JSONObject json = new JSONObject(response);
 
-        int pctInt = (int) p.weeklyPercent;
-        tvWeeklyPercent.setText(pctInt + "%");
-        progressWeeklyBar.setProgress(pctInt);
+                            long hDone = json.getLong("habitsCompleted");
+                            long hTotal = json.getLong("habitsTotal");
+                            long wDone = json.getLong("workoutsCompleted");
+                            long wTotal = json.getLong("workoutsTotal");
+                            double pct = json.getDouble("weeklyProgressPercent");
 
-        if (p.weeklyPercent >= 80) {
-            tvWeeklyMessage.setText("Outstanding! You're crushing your goals!");
-        } else if (p.weeklyPercent >= 50) {
-            tvWeeklyMessage.setText("Great progress! Keep the momentum going.");
-        } else if (p.weeklyPercent > 0) {
-            tvWeeklyMessage.setText("You've started — now push toward 50%!");
-        } else {
-            tvWeeklyMessage.setText("Complete some tasks to see your progress here.");
-        }
+                            tvProgressHabits.setText(hDone + " / " + hTotal);
+                            tvProgressWorkouts.setText(wDone + " / " + wTotal);
 
-        layoutDailyBars.removeAllViews();
-        for (Map.Entry<String, Double> entry : p.daily.entrySet()) {
-            View barView = LayoutInflater.from(requireContext())
-                    .inflate(R.layout.item_daily_bar, layoutDailyBars, false);
+                            int pctInt = (int) pct;
+                            tvWeeklyPercent.setText(pctInt + "%");
+                            progressWeeklyBar.setProgress(pctInt);
 
-            TextView tvDay = barView.findViewById(R.id.tvDayName);
-            ProgressBar progressDay = barView.findViewById(R.id.progressDay);
-            TextView tvPercent = barView.findViewById(R.id.tvDayPercent);
+                            if (pct >= 80) {
+                                tvWeeklyMessage.setText("Outstanding! You're crushing your goals!");
+                            } else if (pct >= 50) {
+                                tvWeeklyMessage.setText("Great progress! Keep the momentum going.");
+                            } else if (pct > 0) {
+                                tvWeeklyMessage.setText("You've started - now push toward 50%!");
+                            } else {
+                                tvWeeklyMessage.setText("Complete some tasks to see your progress here.");
+                            }
 
-            tvDay.setText(entry.getKey().substring(0, 3).toUpperCase());
-            progressDay.setProgress(entry.getValue().intValue());
-            tvPercent.setText(entry.getValue().intValue() + "%");
+                            // build daily bars
+                            layoutDailyBars.removeAllViews();
+                            JSONObject daily = json.getJSONObject("dailyProgress");
+                            Iterator<String> keys = daily.keys();
 
-            layoutDailyBars.addView(barView);
-        }
+                            while (keys.hasNext()) {
+                                String dayName = keys.next();
+                                double dayPct = daily.getDouble(dayName);
+
+                                View barView = LayoutInflater.from(requireContext())
+                                        .inflate(R.layout.item_daily_bar, layoutDailyBars, false);
+
+                                TextView tvDay = (TextView) barView.findViewById(R.id.tvDayName);
+                                ProgressBar progressDay = (ProgressBar) barView.findViewById(R.id.progressDay);
+                                TextView tvPercent = (TextView) barView.findViewById(R.id.tvDayPercent);
+
+                                tvDay.setText(dayName.substring(0, 3).toUpperCase());
+                                progressDay.setProgress((int) dayPct);
+                                tvPercent.setText((int) dayPct + "%");
+
+                                layoutDailyBars.addView(barView);
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        if (isAdded()) {
+                            progressLoading.setVisibility(View.GONE);
+                            Toast.makeText(requireContext(),
+                                    "Failed to load progress", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                });
+
+        queue.add(request);
     }
 }

@@ -8,12 +8,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.fragment.app.Fragment;
 
 import com.example.smarttracker.fragment.HabitsFragment;
@@ -27,14 +23,12 @@ import com.google.android.material.navigation.NavigationBarView;
 
 public class MainActivity extends AppCompatActivity {
 
-    //👉 views + helpers for this screen
     BottomNavigationView bottomNav;
-    TextView tvUserName;
-    ImageView ivProfile;
     FloatingActionButton fabAdd;
+    ImageView ivProfile;
+    TextView tvUserName;
     SessionManager sessionManager;
 
-    //👉 bottom-nav fragments — we add them once and just hide/show 👀
     Fragment activeFragment;
     HomeFragment homeFragment = new HomeFragment();
     HabitsFragment habitsFragment = new HabitsFragment();
@@ -45,32 +39,23 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //👉 if nobody's logged in we bounce them to the login screen first
-        sessionManager = new SessionManager(MainActivity.this);
+        sessionManager = new SessionManager(this);
         if (!sessionManager.isLoggedIn()) {
-            startActivity(new Intent(MainActivity.this, LoginActivity.class));
+            startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
-        EdgeToEdge.enable(MainActivity.this);
         setContentView(R.layout.activity_main);
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-            return insets;
-        });
 
-        //✅ here's the view wiring — explicit casts so we can see the types 🧵
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         bottomNav = (BottomNavigationView) findViewById(R.id.bottomNav);
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
 
-        //👉 slot the real user name from the saved session
         tvUserName.setText(sessionManager.getUserName());
 
-        //👉 add every fragment up front, hide everyone except Home
+        // add all fragments up front, hide everyone except Home
         getSupportFragmentManager().beginTransaction()
                 .add(R.id.fragmentContainer, progressFragment, "progress").hide(progressFragment)
                 .add(R.id.fragmentContainer, workoutsFragment, "workouts").hide(workoutsFragment)
@@ -79,7 +64,7 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
         activeFragment = homeFragment;
 
-        //👉 bottom-nav listener — anonymous inner class flavour 🍦
+        // bottom nav listener — anonymous inner class
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
@@ -96,38 +81,22 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
         });
-        /* lambda version — same behaviour, just shorter:
-        bottomNav.setOnItemSelectedListener(item -> {
-            int id = item.getItemId();
-            if (id == R.id.nav_home) switchFragment(homeFragment);
-            else if (id == R.id.nav_habits) switchFragment(habitsFragment);
-            else if (id == R.id.nav_workouts) switchFragment(workoutsFragment);
-            else if (id == R.id.nav_progress) switchFragment(progressFragment);
-            return true;
-        });
-        */
 
-        //✅ FAB — lambda flavour (prof said mix 'em up 🌮)
-        fabAdd.setOnClickListener(v -> {
-            if (activeFragment == habitsFragment) {
-                habitsFragment.showAddHabitDialog();
-            } else if (activeFragment == workoutsFragment) {
-                workoutsFragment.showAddWorkoutDialog();
-            } else {
-                showAddChooser();
-            }
-        });
-        /* anonymous version:
+        // FAB — anonymous inner class
         fabAdd.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                if (activeFragment == habitsFragment) habitsFragment.showAddHabitDialog();
-                else if (activeFragment == workoutsFragment) workoutsFragment.showAddWorkoutDialog();
-                else showAddChooser();
+            @Override
+            public void onClick(View v) {
+                if (activeFragment == habitsFragment) {
+                    habitsFragment.showAddHabitDialog();
+                } else if (activeFragment == workoutsFragment) {
+                    workoutsFragment.showAddWorkoutDialog();
+                } else {
+                    showAddChooser();
+                }
             }
         });
-        */
 
-        //👉 profile icon → little log-out dialog
+        // profile icon — anonymous inner class
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -163,15 +132,18 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showAddChooser() {
-        new AlertDialog.Builder(MainActivity.this)
+        new AlertDialog.Builder(this)
                 .setTitle("Add New")
-                .setItems(new String[]{"New Habit", "New Workout"}, (dialog, which) -> {
-                    if (which == 0) {
-                        bottomNav.setSelectedItemId(R.id.nav_habits);
-                        habitsFragment.showAddHabitDialog();
-                    } else {
-                        bottomNav.setSelectedItemId(R.id.nav_workouts);
-                        workoutsFragment.showAddWorkoutDialog();
+                .setItems(new String[]{"New Habit", "New Workout"}, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        if (which == 0) {
+                            bottomNav.setSelectedItemId(R.id.nav_habits);
+                            habitsFragment.showAddHabitDialog();
+                        } else {
+                            bottomNav.setSelectedItemId(R.id.nav_workouts);
+                            workoutsFragment.showAddWorkoutDialog();
+                        }
                     }
                 })
                 .show();

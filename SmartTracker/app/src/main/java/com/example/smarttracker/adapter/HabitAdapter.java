@@ -10,15 +10,15 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.smarttracker.R;
-import com.example.smarttracker.data.Habit;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHolder> {
 
-    private List<Habit> habits = new ArrayList<>();
-    private final OnHabitDeleteListener listener;
+    private JSONArray habits = new JSONArray();
+    private OnHabitDeleteListener listener;
 
     public interface OnHabitDeleteListener {
         void onDelete(int habitId, String title);
@@ -28,7 +28,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
         this.listener = listener;
     }
 
-    public void setHabits(List<Habit> habits) {
+    public void setHabits(JSONArray habits) {
         this.habits = habits;
         notifyDataSetChanged();
     }
@@ -43,25 +43,35 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
 
     @Override
     public void onBindViewHolder(@NonNull HabitViewHolder holder, int position) {
-        Habit habit = habits.get(position);
-        String description = habit.description != null && !habit.description.isEmpty()
-                ? habit.description
-                : (habit.category != null && !habit.category.isEmpty()
-                        ? habit.category : "No description");
+        try {
+            JSONObject habit = habits.getJSONObject(position);
+            final String title = habit.getString("title");
+            String description = habit.optString("description", "");
+            String category = habit.optString("category", "");
+            String frequency = habit.optString("frequency", "DAILY");
+            int streak = habit.optInt("streak", 0);
+            final int habitId = habit.getInt("id");
 
-        holder.tvTitle.setText(habit.title);
-        holder.tvDescription.setText(description);
-        holder.tvFrequency.setText(habit.frequency);
-        holder.tvStreak.setText("Streak: " + habit.streak);
+            holder.tvTitle.setText(title);
+            holder.tvDescription.setText(!description.isEmpty() ? description :
+                    !category.isEmpty() ? category : "No description");
+            holder.tvFrequency.setText(frequency);
+            holder.tvStreak.setText("Streak: " + streak);
 
-        holder.ivDelete.setOnClickListener(v -> {
-            if (listener != null) listener.onDelete(habit.id, habit.title);
-        });
+            holder.ivDelete.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (listener != null) listener.onDelete(habitId, title);
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
     public int getItemCount() {
-        return habits.size();
+        return habits.length();
     }
 
     static class HabitViewHolder extends RecyclerView.ViewHolder {
@@ -70,11 +80,11 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
 
         HabitViewHolder(@NonNull View itemView) {
             super(itemView);
-            tvTitle = itemView.findViewById(R.id.tvHabitTitle);
-            tvDescription = itemView.findViewById(R.id.tvHabitDescription);
-            tvFrequency = itemView.findViewById(R.id.tvHabitFrequency);
-            tvStreak = itemView.findViewById(R.id.tvHabitStreak);
-            ivDelete = itemView.findViewById(R.id.ivDeleteHabit);
+            tvTitle = (TextView) itemView.findViewById(R.id.tvHabitTitle);
+            tvDescription = (TextView) itemView.findViewById(R.id.tvHabitDescription);
+            tvFrequency = (TextView) itemView.findViewById(R.id.tvHabitFrequency);
+            tvStreak = (TextView) itemView.findViewById(R.id.tvHabitStreak);
+            ivDelete = (ImageView) itemView.findViewById(R.id.ivDeleteHabit);
         }
     }
 }
