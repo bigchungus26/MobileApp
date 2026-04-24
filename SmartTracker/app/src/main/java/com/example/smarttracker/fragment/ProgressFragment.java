@@ -112,7 +112,6 @@ public class ProgressFragment extends Fragment {
                                 tvWeeklyMessage.setText("Complete some tasks to see your progress here.");
                             }
 
-                            // build daily bars
                             layoutDailyBars.removeAllViews();
                             JSONObject daily = json.getJSONObject("dailyProgress");
                             Iterator<String> keys = daily.keys();

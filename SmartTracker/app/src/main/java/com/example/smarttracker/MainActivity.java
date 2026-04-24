@@ -55,7 +55,6 @@ public class MainActivity extends AppCompatActivity {
 
         tvUserName.setText(sessionManager.getUserName());
 
-        // add all fragments up front, hide everyone except Home
         getSupportFragmentManager().beginTransaction()
                 .add(R.id.fragmentContainer, progressFragment, "progress").hide(progressFragment)
                 .add(R.id.fragmentContainer, workoutsFragment, "workouts").hide(workoutsFragment)
@@ -64,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
                 .commit();
         activeFragment = homeFragment;
 
-        // bottom nav listener — anonymous inner class
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
@@ -82,7 +80,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // FAB — anonymous inner class
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -96,7 +93,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // profile icon — anonymous inner class
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
