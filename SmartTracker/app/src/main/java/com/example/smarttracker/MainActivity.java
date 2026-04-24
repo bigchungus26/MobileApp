@@ -149,6 +149,10 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    public void navigateToTab(int navItemId) {
+        bottomNav.setSelectedItemId(navItemId);
+    }
+
     private void switchFragment(Fragment target) {
         if (target == activeFragment) return;
         getSupportFragmentManager().beginTransaction()
