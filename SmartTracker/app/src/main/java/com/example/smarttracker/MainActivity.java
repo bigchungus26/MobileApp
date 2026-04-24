@@ -2,6 +2,7 @@ package com.example.smarttracker;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.MenuItem;
 import android.view.View;
@@ -10,13 +11,7 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.fragment.app.Fragment;
 
-import com.example.smarttracker.fragment.HabitsFragment;
-import com.example.smarttracker.fragment.HomeFragment;
-import com.example.smarttracker.fragment.ProgressFragment;
-import com.example.smarttracker.fragment.WorkoutsFragment;
-import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationBarView;
@@ -27,20 +22,14 @@ public class MainActivity extends AppCompatActivity {
     FloatingActionButton fabAdd;
     ImageView ivProfile;
     TextView tvUserName;
-    SessionManager sessionManager;
-
-    Fragment activeFragment;
-    HomeFragment homeFragment = new HomeFragment();
-    HabitsFragment habitsFragment = new HabitsFragment();
-    WorkoutsFragment workoutsFragment = new WorkoutsFragment();
-    ProgressFragment progressFragment = new ProgressFragment();
+    SharedPreferences prefs;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        sessionManager = new SessionManager(this);
-        if (!sessionManager.isLoggedIn()) {
+        prefs = getSharedPreferences("smarttracker", MODE_PRIVATE);
+        if (prefs.getInt("user_id", -1) == -1) {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
@@ -53,43 +42,34 @@ public class MainActivity extends AppCompatActivity {
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
 
-        tvUserName.setText(sessionManager.getUserName());
+        tvUserName.setText(prefs.getString("user_name", "User"));
 
-        getSupportFragmentManager().beginTransaction()
-                .add(R.id.fragmentContainer, progressFragment, "progress").hide(progressFragment)
-                .add(R.id.fragmentContainer, workoutsFragment, "workouts").hide(workoutsFragment)
-                .add(R.id.fragmentContainer, habitsFragment, "habits").hide(habitsFragment)
-                .add(R.id.fragmentContainer, homeFragment, "home")
-                .commit();
-        activeFragment = homeFragment;
+        bottomNav.setSelectedItemId(R.id.nav_home);
 
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
                 int id = item.getItemId();
                 if (id == R.id.nav_home) {
-                    switchFragment(homeFragment);
+                    return true;
                 } else if (id == R.id.nav_habits) {
-                    switchFragment(habitsFragment);
+                    startActivity(new Intent(MainActivity.this, HabitsActivity.class));
+                    return false;
                 } else if (id == R.id.nav_workouts) {
-                    switchFragment(workoutsFragment);
+                    startActivity(new Intent(MainActivity.this, WorkoutsActivity.class));
+                    return false;
                 } else if (id == R.id.nav_progress) {
-                    switchFragment(progressFragment);
+                    startActivity(new Intent(MainActivity.this, ProgressActivity.class));
+                    return false;
                 }
-                return true;
+                return false;
             }
         });
 
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (activeFragment == habitsFragment) {
-                    habitsFragment.showAddHabitDialog();
-                } else if (activeFragment == workoutsFragment) {
-                    workoutsFragment.showAddWorkoutDialog();
-                } else {
-                    showAddChooser();
-                }
+                showAddChooser();
             }
         });
 
@@ -98,11 +78,11 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Account")
-                        .setMessage("Logged in as " + sessionManager.getUserEmail())
+                        .setMessage("Logged in as " + prefs.getString("user_email", ""))
                         .setPositiveButton("Log Out", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                sessionManager.logout();
+                                prefs.edit().clear().apply();
                                 startActivity(new Intent(MainActivity.this, LoginActivity.class)
                                         .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
                                 finish();
@@ -118,15 +98,6 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.setSelectedItemId(navItemId);
     }
 
-    private void switchFragment(Fragment target) {
-        if (target == activeFragment) return;
-        getSupportFragmentManager().beginTransaction()
-                .hide(activeFragment)
-                .show(target)
-                .commit();
-        activeFragment = target;
-    }
-
     public void showAddChooser() {
         new AlertDialog.Builder(this)
                 .setTitle("Add New")
@@ -134,11 +105,9 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         if (which == 0) {
-                            bottomNav.setSelectedItemId(R.id.nav_habits);
-                            habitsFragment.showAddHabitDialog();
+                            startActivity(new Intent(MainActivity.this, HabitsActivity.class));
                         } else {
-                            bottomNav.setSelectedItemId(R.id.nav_workouts);
-                            workoutsFragment.showAddWorkoutDialog();
+                            startActivity(new Intent(MainActivity.this, WorkoutsActivity.class));
                         }
                     }
                 })
