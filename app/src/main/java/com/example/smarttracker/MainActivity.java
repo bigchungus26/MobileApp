@@ -2,12 +2,13 @@ package com.example.smarttracker;
 
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
@@ -18,29 +19,37 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.OnApplyWindowInsetsListener;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
-import androidx.fragment.app.FragmentTransaction;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.smarttracker.fragment.HomeFragment;
+import com.example.smarttracker.adapter.TaskAdapter;
+import com.example.smarttracker.data.Repository;
+import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationBarView;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTaskToggleListener {
 
     //👉 views + prefs for this screen
     BottomNavigationView bottomNav;
-    TextView tvUserName;
+    TextView tvUserName, tvHabitsCount, tvWorkoutCount, tvProgressText;
     ImageView ivProfile;
+    ProgressBar progressWeekly;
+    RecyclerView recyclerTodayTasks;
     FloatingActionButton fabAdd;
-    SharedPreferences prefs;
+    Button btnStartNow;
+    TextView tvSeeAll;
+    TaskAdapter taskAdapter;
+    Repository repository;
+    SessionManager sessionManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //if not logged in, go to login screen
-        prefs = getSharedPreferences("smarttracker", MODE_PRIVATE);
-        if (prefs.getInt("user_id", -1) == -1) {
+        sessionManager = new SessionManager(MainActivity.this);
+        if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
             finish();
             return;
@@ -48,6 +57,8 @@ public class MainActivity extends AppCompatActivity {
 
         EdgeToEdge.enable(MainActivity.this);
         setContentView(R.layout.activity_main);
+
+        repository = Repository.get(MainActivity.this);
 
         //hook up the action bar so we can show the Settings menu item
         Toolbar mainToolbar = (Toolbar) findViewById(R.id.mainToolbar);
@@ -69,15 +80,19 @@ public class MainActivity extends AppCompatActivity {
         bottomNav = (BottomNavigationView) findViewById(R.id.bottomNav);
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
+        tvHabitsCount = (TextView) findViewById(R.id.tvHabitsCount);
+        tvWorkoutCount = (TextView) findViewById(R.id.tvWorkoutCount);
+        tvProgressText = (TextView) findViewById(R.id.tvProgressText);
+        progressWeekly = (ProgressBar) findViewById(R.id.progressWeekly);
+        recyclerTodayTasks = (RecyclerView) findViewById(R.id.recyclerTodayTasks);
+        btnStartNow = (Button) findViewById(R.id.btnStartNow);
+        tvSeeAll = (TextView) findViewById(R.id.tvSeeAll);
 
-        //get user name through sharedPreferences
-        tvUserName.setText(prefs.getString("user_name", "User"));
+        tvUserName.setText(sessionManager.getUserName());
 
-        if (savedInstanceState == null) {
-            FragmentTransaction tx = getSupportFragmentManager().beginTransaction();
-            tx.replace(R.id.fragmentContainer, new HomeFragment());
-            tx.commit();
-        }
+        taskAdapter = new TaskAdapter(MainActivity.this);
+        recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+        recyclerTodayTasks.setAdapter(taskAdapter);
 
         bottomNav.setSelectedItemId(R.id.nav_home);
 
@@ -111,16 +126,31 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        btnStartNow.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showAddChooser();
+            }
+        });
+
+        tvSeeAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this, HabitsActivity.class));
+                finish();
+            }
+        });
+
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 new AlertDialog.Builder(MainActivity.this)
                         .setTitle("Account")
-                        .setMessage("Logged in as " + prefs.getString("user_email", ""))
+                        .setMessage("Logged in as " + sessionManager.getUserEmail())
                         .setPositiveButton("Log Out", new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
-                                prefs.edit().clear().apply();
+                                sessionManager.logout();
                                 startActivity(new Intent(MainActivity.this, LoginActivity.class)
                                         .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
                                 finish();
@@ -130,6 +160,16 @@ public class MainActivity extends AppCompatActivity {
                         .show();
             }
         });
+
+        loadData();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (sessionManager != null && sessionManager.isLoggedIn()) {
+            loadData();
+        }
     }
 
     //inflate the action bar menu (Settings item)
@@ -147,6 +187,32 @@ public class MainActivity extends AppCompatActivity {
             return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void loadData() {
+        int userId = sessionManager.getUserId();
+        taskAdapter.setTasks(repository.getTodayTasks(userId));
+
+        Repository.ProgressSummary p = repository.getProgress(userId);
+        tvHabitsCount.setText(p.habitsCompleted + " / " + p.habitsTotal);
+        tvWorkoutCount.setText(p.workoutsCompleted + " / " + p.workoutsTotal);
+        progressWeekly.setProgress((int) p.weeklyPercent);
+
+        if (p.weeklyPercent >= 80) {
+            tvProgressText.setText("Amazing! You're crushing it this week!");
+        } else if (p.weeklyPercent >= 50) {
+            tvProgressText.setText("You're doing great. Keep your streak going.");
+        } else if (p.weeklyPercent > 0) {
+            tvProgressText.setText("Good start! Keep pushing to hit your goals.");
+        } else {
+            tvProgressText.setText("Start completing tasks to see your progress.");
+        }
+    }
+
+    @Override
+    public void onToggle(int taskId) {
+        repository.toggleTask(taskId, sessionManager.getUserId());
+        loadData();
     }
 
     public void showAddChooser() {
