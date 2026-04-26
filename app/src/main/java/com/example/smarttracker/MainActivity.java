@@ -31,7 +31,6 @@ import com.google.android.material.navigation.NavigationBarView;
 
 public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTaskToggleListener {
 
-    //👉 views + prefs for this screen
     BottomNavigationView bottomNav;
     TextView tvUserName, tvHabitsCount, tvWorkoutCount, tvProgressText;
     ImageView ivProfile;
@@ -60,7 +59,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         repository = Repository.get(MainActivity.this);
 
-        //hook up the action bar so we can show the Settings menu item
+        //show Settings menu item through actionbar
         Toolbar mainToolbar = (Toolbar) findViewById(R.id.mainToolbar);
         setSupportActionBar(mainToolbar);
         if (getSupportActionBar() != null) {
@@ -172,7 +171,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         }
     }
 
-    //inflate the action bar menu (Settings item)
+    //inflate the action bar menu
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);

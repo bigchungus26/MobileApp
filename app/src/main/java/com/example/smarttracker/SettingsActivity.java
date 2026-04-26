@@ -15,7 +15,6 @@ import androidx.appcompat.widget.Toolbar;
 
 public class SettingsActivity extends AppCompatActivity {
 
-    //👉 views + prefs for the settings screen
     Switch switchDarkMode;
     Switch switchReminders;
     Button btnSaveSettings;
