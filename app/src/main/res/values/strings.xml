@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">SmartTracker</string>
+
+    <!-- login screen -->
+    <string name="loginTitle">SmartTracker</string>
+    <string name="loginSubtitle">Track your habits and workouts</string>
+    <string name="emailHint">Email</string>
+    <string name="passwordHint">Password</string>
+    <string name="btnLoginText">Log In</string>
+    <string name="noAccountPrompt">Don\'t have an account? </string>
+    <string name="signUpLink">Sign Up</string>
+
+    <!-- register screen -->
+    <string name="registerTitle">Create Account</string>
+    <string name="registerSubtitle">Start tracking your progress today</string>
+    <string name="fullNameHint">Full Name</string>
+    <string name="passwordMinHint">Password (min 6 characters)</string>
+    <string name="btnRegisterText">Sign Up</string>
+    <string name="haveAccountPrompt">Already have an account? </string>
+    <string name="logInLink">Log In</string>
+</resources>

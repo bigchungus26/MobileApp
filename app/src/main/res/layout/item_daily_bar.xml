@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <TextView
+        android:id="@+id/tvDayName"
+        android:layout_width="60dp"
+        android:layout_height="wrap_content"
+        android:text="MON"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="?android:textColorSecondary" />
+
+    <ProgressBar
+        android:id="@+id/progressDay"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="0dp"
+        android:layout_height="8dp"
+        android:layout_weight="1"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:max="100"
+        android:progress="0"
+        android:progressTint="@color/primaryAccent" />
+
+    <TextView
+        android:id="@+id/tvDayPercent"
+        android:layout_width="40dp"
+        android:layout_height="wrap_content"
+        android:text="0%"
+        android:textSize="12sp"
+        android:textColor="?android:textColorPrimary"
+        android:gravity="end" />
+</LinearLayout>
