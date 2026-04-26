@@ -17,6 +17,7 @@ public class SettingsActivity extends AppCompatActivity {
 
     //👉 views + prefs for the settings screen
     Switch switchDarkMode;
+    Switch switchReminders;
     Button btnSaveSettings;
     SharedPreferences settingsPrefs;
 
@@ -34,20 +35,25 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         switchDarkMode = (Switch) findViewById(R.id.switchDarkMode);
+        switchReminders = (Switch) findViewById(R.id.switchReminders);
         btnSaveSettings = (Button) findViewById(R.id.btnSaveSettings);
 
-        //load the previously saved value from SharedPreferences
+        //load the previously saved values from SharedPreferences
         settingsPrefs = getSharedPreferences("settings", Context.MODE_PRIVATE);
         boolean savedDarkMode = settingsPrefs.getBoolean("dark_mode", false);
+        boolean savedReminders = settingsPrefs.getBoolean("reminders_enabled", false);
         switchDarkMode.setChecked(savedDarkMode);
+        switchReminders.setChecked(savedReminders);
 
         //save button writes the new value with commit()
         btnSaveSettings.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 boolean isDark = switchDarkMode.isChecked();
+                boolean remindersEnabled = switchReminders.isChecked();
                 SharedPreferences.Editor editor = settingsPrefs.edit();
                 editor.putBoolean("dark_mode", isDark);
+                editor.putBoolean("reminders_enabled", remindersEnabled);
                 editor.commit();
 
                 if (isDark) {

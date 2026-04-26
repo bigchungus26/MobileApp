@@ -39,6 +39,25 @@
             android:textColor="?android:textColorPrimary"
             android:textSize="16sp" />
 
+        <TextView
+            android:id="@+id/tvRemindersLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:text="Reminders"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Switch
+            android:id="@+id/switchReminders"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Enable Reminders"
+            android:textColor="?android:textColorPrimary"
+            android:textSize="16sp" />
+
         <Button
             android:id="@+id/btnSaveSettings"
             android:layout_width="match_parent"
