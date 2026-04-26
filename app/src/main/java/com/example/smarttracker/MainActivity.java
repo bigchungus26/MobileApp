@@ -22,12 +22,27 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.adapter.TaskAdapter;
-import com.example.smarttracker.data.Repository;
+import com.example.smarttracker.data.Task;
+import com.example.smarttracker.util.ApiConfig;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationBarView;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTaskToggleListener {
 
@@ -40,8 +55,8 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     Button btnStartNow;
     TextView tvSeeAll;
     TaskAdapter taskAdapter;
-    Repository repository;
     SessionManager sessionManager;
+    RequestQueue queue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,9 +72,8 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         EdgeToEdge.enable(MainActivity.this);
         setContentView(R.layout.activity_main);
 
-        repository = Repository.get(MainActivity.this);
+        queue = Volley.newRequestQueue(MainActivity.this);
 
-        //show Settings menu item through actionbar
         Toolbar mainToolbar = (Toolbar) findViewById(R.id.mainToolbar);
         setSupportActionBar(mainToolbar);
         if (getSupportActionBar() != null) {
@@ -94,7 +108,6 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         recyclerTodayTasks.setAdapter(taskAdapter);
 
         bottomNav.setSelectedItemId(R.id.nav_home);
-
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
             public boolean onNavigationItemSelected(MenuItem item) {
@@ -120,16 +133,12 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
 
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                showAddChooser();
-            }
+            public void onClick(View v) { showAddChooser(); }
         });
 
         btnStartNow.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                showAddChooser();
-            }
+            public void onClick(View v) { showAddChooser(); }
         });
 
         tvSeeAll.setOnClickListener(new View.OnClickListener() {
@@ -160,25 +169,25 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
         });
 
-        loadData();
+        loadTasks();
+        loadProgress();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         if (sessionManager != null && sessionManager.isLoggedIn()) {
-            loadData();
+            loadTasks();
+            loadProgress();
         }
     }
 
-    //inflate the action bar menu
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         return true;
     }
 
-    //handle Settings click from the action bar
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_settings) {
@@ -188,30 +197,104 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         return super.onOptionsItemSelected(item);
     }
 
-    private void loadData() {
+    private void loadTasks() {
+        final int userId = sessionManager.getUserId();
+        String url = ApiConfig.GET_TASKS + "?user_id=" + userId;
+
+        StringRequest request = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        List<Task> tasks = new ArrayList<>();
+                        try {
+                            JSONArray arr = new JSONArray(response);
+                            for (int i = 0; i < arr.length(); i++) {
+                                JSONObject o = arr.getJSONObject(i);
+                                Task t = new Task();
+                                t.id = o.getInt("id");
+                                t.title = o.optString("title");
+                                t.description = o.optString("description");
+                                t.completed = o.optInt("completed", 0) == 1;
+                                tasks.add(t);
+                            }
+                        } catch (Exception ignored) { }
+                        taskAdapter.setTasks(tasks);
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) { }
+                });
+
+        queue.add(request);
+    }
+
+    private void loadProgress() {
         int userId = sessionManager.getUserId();
-        taskAdapter.setTasks(repository.getTodayTasks(userId));
+        String url = ApiConfig.GET_PROGRESS + "?user_id=" + userId;
 
-        Repository.ProgressSummary p = repository.getProgress(userId);
-        tvHabitsCount.setText(p.habitsCompleted + " / " + p.habitsTotal);
-        tvWorkoutCount.setText(p.workoutsCompleted + " / " + p.workoutsTotal);
-        progressWeekly.setProgress((int) p.weeklyPercent);
+        StringRequest request = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        try {
+                            JSONObject json = new JSONObject(response);
+                            int hDone = json.optInt("habitsCompleted", 0);
+                            int hTotal = json.optInt("habitsTotal", 0);
+                            int wDone = json.optInt("workoutsCompleted", 0);
+                            int wTotal = json.optInt("workoutsTotal", 0);
+                            double weekly = json.optDouble("weeklyPercent", 0.0);
 
-        if (p.weeklyPercent >= 80) {
-            tvProgressText.setText("Amazing! You're crushing it this week!");
-        } else if (p.weeklyPercent >= 50) {
-            tvProgressText.setText("You're doing great. Keep your streak going.");
-        } else if (p.weeklyPercent > 0) {
-            tvProgressText.setText("Good start! Keep pushing to hit your goals.");
-        } else {
-            tvProgressText.setText("Start completing tasks to see your progress.");
-        }
+                            tvHabitsCount.setText(hDone + " / " + hTotal);
+                            tvWorkoutCount.setText(wDone + " / " + wTotal);
+                            progressWeekly.setProgress((int) weekly);
+
+                            if (weekly >= 80) {
+                                tvProgressText.setText("Amazing! You're crushing it this week!");
+                            } else if (weekly >= 50) {
+                                tvProgressText.setText("You're doing great. Keep your streak going.");
+                            } else if (weekly > 0) {
+                                tvProgressText.setText("Good start! Keep pushing to hit your goals.");
+                            } else {
+                                tvProgressText.setText("Start completing tasks to see your progress.");
+                            }
+                        } catch (Exception ignored) { }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) { }
+                });
+
+        queue.add(request);
     }
 
     @Override
-    public void onToggle(int taskId) {
-        repository.toggleTask(taskId, sessionManager.getUserId());
-        loadData();
+    public void onToggle(final int taskId) {
+        final int userId = sessionManager.getUserId();
+
+        StringRequest request = new StringRequest(Request.Method.POST, ApiConfig.TOGGLE_TASK,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        loadTasks();
+                        loadProgress();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) { }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("task_id", String.valueOf(taskId));
+                params.put("user_id", String.valueOf(userId));
+                return params;
+            }
+        };
+
+        queue.add(request);
     }
 
     public void showAddChooser() {

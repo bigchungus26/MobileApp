@@ -17,16 +17,28 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.example.smarttracker.adapter.WorkoutAdapter;
-import com.example.smarttracker.data.Repository;
 import com.example.smarttracker.data.Workout;
+import com.example.smarttracker.util.ApiConfig;
 import com.example.smarttracker.util.SessionManager;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.navigation.NavigationBarView;
 import com.google.android.material.textfield.TextInputEditText;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapter.OnWorkoutActionListener {
 
@@ -37,8 +49,8 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
     WorkoutAdapter workoutAdapter;
     FloatingActionButton fabAdd;
     BottomNavigationView bottomNav;
-    Repository repository;
     SessionManager sessionManager;
+    RequestQueue queue;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,7 +65,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
 
         setContentView(R.layout.activity_workouts);
 
-        repository = Repository.get(WorkoutsActivity.this);
+        queue = Volley.newRequestQueue(WorkoutsActivity.this);
 
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
@@ -95,9 +107,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
 
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v) {
-                showAddWorkoutDialog();
-            }
+            public void onClick(View v) { showAddWorkoutDialog(); }
         });
 
         ivProfile.setOnClickListener(new View.OnClickListener() {
@@ -136,16 +146,53 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
     }
 
     private void loadWorkouts() {
-        progressWorkouts.setVisibility(View.GONE);
-        List<Workout> workouts = repository.getTodayWorkouts(sessionManager.getUserId());
-        workoutAdapter.setWorkouts(workouts);
-        if (workouts.isEmpty()) {
-            tvEmpty.setVisibility(View.VISIBLE);
-            recyclerWorkouts.setVisibility(View.GONE);
-        } else {
-            tvEmpty.setVisibility(View.GONE);
-            recyclerWorkouts.setVisibility(View.VISIBLE);
-        }
+        progressWorkouts.setVisibility(View.VISIBLE);
+        int userId = sessionManager.getUserId();
+        String url = ApiConfig.GET_WORKOUTS + "?user_id=" + userId;
+
+        StringRequest request = new StringRequest(Request.Method.GET, url,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        progressWorkouts.setVisibility(View.GONE);
+                        List<Workout> workouts = new ArrayList<>();
+                        try {
+                            JSONArray arr = new JSONArray(response);
+                            for (int i = 0; i < arr.length(); i++) {
+                                JSONObject o = arr.getJSONObject(i);
+                                Workout w = new Workout();
+                                w.id = o.getInt("id");
+                                w.userId = o.optInt("user_id");
+                                w.title = o.optString("title");
+                                w.durationMinutes = o.optInt("duration_minutes", 0);
+                                w.calories = o.optInt("calories", 0);
+                                w.intensity = o.optString("intensity", "MEDIUM");
+                                w.date = o.optString("date");
+                                w.completed = o.optInt("completed", 0) == 1;
+                                workouts.add(w);
+                            }
+                        } catch (Exception ignored) { }
+
+                        workoutAdapter.setWorkouts(workouts);
+                        if (workouts.isEmpty()) {
+                            tvEmpty.setVisibility(View.VISIBLE);
+                            recyclerWorkouts.setVisibility(View.GONE);
+                        } else {
+                            tvEmpty.setVisibility(View.GONE);
+                            recyclerWorkouts.setVisibility(View.VISIBLE);
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        progressWorkouts.setVisibility(View.GONE);
+                        Toast.makeText(WorkoutsActivity.this,
+                                "Network error", Toast.LENGTH_SHORT).show();
+                    }
+                });
+
+        queue.add(request);
     }
 
     private void showAddWorkoutDialog() {
@@ -182,15 +229,46 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                             intensity = "MEDIUM";
                         }
 
-                        repository.addWorkout(sessionManager.getUserId(), title, duration,
-                                calories, intensity);
-                        Toast.makeText(WorkoutsActivity.this,
-                                "Workout logged!", Toast.LENGTH_SHORT).show();
-                        loadWorkouts();
+                        addWorkout(title, duration, calories, intensity);
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void addWorkout(final String title, final int duration,
+                            final int calories, final String intensity) {
+        final int userId = sessionManager.getUserId();
+
+        StringRequest request = new StringRequest(Request.Method.POST, ApiConfig.ADD_WORKOUT,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        Toast.makeText(WorkoutsActivity.this,
+                                "Workout logged!", Toast.LENGTH_SHORT).show();
+                        loadWorkouts();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(WorkoutsActivity.this,
+                                "Network error", Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("user_id", String.valueOf(userId));
+                params.put("title", title);
+                params.put("duration_minutes", String.valueOf(duration));
+                params.put("calories", String.valueOf(calories));
+                params.put("intensity", intensity);
+                return params;
+            }
+        };
+
+        queue.add(request);
     }
 
     private int parseIntOrZero(String s) {
@@ -203,9 +281,28 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
     }
 
     @Override
-    public void onToggle(int workoutId) {
-        repository.toggleWorkout(workoutId, sessionManager.getUserId());
-        loadWorkouts();
+    public void onToggle(final int workoutId) {
+        final int userId = sessionManager.getUserId();
+
+        StringRequest request = new StringRequest(Request.Method.POST, ApiConfig.TOGGLE_WORKOUT,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) { loadWorkouts(); }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) { }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("workout_id", String.valueOf(workoutId));
+                params.put("user_id", String.valueOf(userId));
+                return params;
+            }
+        };
+
+        queue.add(request);
     }
 
     @Override
@@ -216,11 +313,37 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                 .setPositiveButton("Delete", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        repository.deleteWorkout(workoutId, sessionManager.getUserId());
-                        loadWorkouts();
+                        deleteWorkout(workoutId);
                     }
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void deleteWorkout(final int workoutId) {
+        final int userId = sessionManager.getUserId();
+
+        StringRequest request = new StringRequest(Request.Method.POST, ApiConfig.DELETE_WORKOUT,
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) { loadWorkouts(); }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(WorkoutsActivity.this,
+                                "Network error", Toast.LENGTH_SHORT).show();
+                    }
+                }) {
+            @Override
+            protected Map<String, String> getParams() {
+                Map<String, String> params = new HashMap<>();
+                params.put("workout_id", String.valueOf(workoutId));
+                params.put("user_id", String.valueOf(userId));
+                return params;
+            }
+        };
+
+        queue.add(request);
     }
 }
