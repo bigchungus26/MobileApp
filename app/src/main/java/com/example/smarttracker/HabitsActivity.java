@@ -56,6 +56,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //gate this screen behind a valid session
         sessionManager = new SessionManager(this);
         if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(HabitsActivity.this, LoginActivity.class));
@@ -67,6 +68,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
 
         queue = Volley.newRequestQueue(HabitsActivity.this);
 
+        //link the layout views
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
         progressHabits = (ProgressBar) findViewById(R.id.progressHabits);
@@ -77,10 +79,12 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
 
         tvUserName.setText(sessionManager.getUserName());
 
+        //set up the habits list with a simple vertical layout
         habitAdapter = new HabitAdapter(HabitsActivity.this);
         recyclerHabits.setLayoutManager(new LinearLayoutManager(HabitsActivity.this));
         recyclerHabits.setAdapter(habitAdapter);
 
+        //highlight the habits tab in the bottom nav
         bottomNav.setSelectedItemId(R.id.nav_habits);
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
@@ -105,11 +109,13 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
             }
         });
 
+        //add button opens the new habit dialog
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) { showAddHabitDialog(); }
         });
 
+        //profile icon opens the same account dialog as the home screen
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -132,11 +138,13 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
 
         loadHabits();
 
+        //if the user came here from the home screen add button open the dialog right away
         if (getIntent().getBooleanExtra("openAddDialog", false)) {
             showAddHabitDialog();
         }
     }
 
+    //refresh the habit list whenever the user returns to the screen
     @Override
     protected void onResume() {
         super.onResume();
@@ -145,6 +153,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
         }
     }
 
+    //fetch the user's habits from the backend
     private void loadHabits() {
         progressHabits.setVisibility(View.VISIBLE);
         int userId = sessionManager.getUserId();
@@ -155,6 +164,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                     @Override
                     public void onResponse(String response) {
                         progressHabits.setVisibility(View.GONE);
+                        //convert the JSON array into a list of Habit objects
                         List<Habit> habits = new ArrayList<>();
                         try {
                             JSONArray arr = new JSONArray(response);
@@ -174,6 +184,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                         } catch (Exception ignored) { }
 
                         habitAdapter.setHabits(habits);
+                        //show the empty state if there are no habits yet
                         if (habits.isEmpty()) {
                             tvEmpty.setVisibility(View.VISIBLE);
                             recyclerHabits.setVisibility(View.GONE);
@@ -195,10 +206,12 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
         queue.add(request);
     }
 
+    //popup form to create a new habit
     private void showAddHabitDialog() {
         View dialogView = LayoutInflater.from(HabitsActivity.this)
                 .inflate(R.layout.dialog_add_habit, null);
 
+        //grab the form inputs from the inflated dialog view
         final TextInputEditText etTitle = (TextInputEditText) dialogView.findViewById(R.id.etHabitTitle);
         final TextInputEditText etDescription = (TextInputEditText) dialogView.findViewById(R.id.etHabitDescription);
         final TextInputEditText etCategory = (TextInputEditText) dialogView.findViewById(R.id.etHabitCategory);
@@ -210,6 +223,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                 .setPositiveButton("Create", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        //title is required, the rest is optional
                         String title = etTitle.getText().toString().trim();
                         if (title.isEmpty()) {
                             Toast.makeText(HabitsActivity.this,
@@ -219,6 +233,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
 
                         String description = etDescription.getText().toString().trim();
                         String category = etCategory.getText().toString().trim();
+                        //read which frequency radio button was selected
                         String frequency = rgFrequency.getCheckedRadioButtonId() == R.id.rbWeekly
                                 ? "WEEKLY" : "DAILY";
 
@@ -229,6 +244,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                 .show();
     }
 
+    //send the new habit to the backend
     private void addHabit(final String title, final String description,
                           final String category, final String frequency) {
         final int userId = sessionManager.getUserId();
@@ -237,6 +253,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        //confirm to the user and reload the list
                         Toast.makeText(HabitsActivity.this,
                                 "Habit created!", Toast.LENGTH_SHORT).show();
                         loadHabits();
@@ -264,6 +281,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
         queue.add(request);
     }
 
+    //triggered by the trash icon in the habit row, asks for confirmation first
     @Override
     public void onDelete(final int habitId, String title) {
         new AlertDialog.Builder(HabitsActivity.this)
@@ -279,6 +297,7 @@ public class HabitsActivity extends AppCompatActivity implements HabitAdapter.On
                 .show();
     }
 
+    //call the delete endpoint then refresh the list
     private void deleteHabit(final int habitId) {
         final int userId = sessionManager.getUserId();
 

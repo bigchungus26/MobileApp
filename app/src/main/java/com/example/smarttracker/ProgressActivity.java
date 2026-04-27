@@ -43,6 +43,7 @@ public class ProgressActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //gate this screen behind a valid session
         sessionManager = new SessionManager(this);
         if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(ProgressActivity.this, LoginActivity.class));
@@ -54,6 +55,7 @@ public class ProgressActivity extends AppCompatActivity {
 
         queue = Volley.newRequestQueue(ProgressActivity.this);
 
+        //link layout views
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
         tvProgressHabits = (TextView) findViewById(R.id.tvProgressHabits);
@@ -67,6 +69,7 @@ public class ProgressActivity extends AppCompatActivity {
 
         tvUserName.setText(sessionManager.getUserName());
 
+        //highlight the progress tab in the bottom nav
         bottomNav.setSelectedItemId(R.id.nav_progress);
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
@@ -114,6 +117,7 @@ public class ProgressActivity extends AppCompatActivity {
         loadProgress();
     }
 
+    //refresh the progress data whenever the user returns to this screen
     @Override
     protected void onResume() {
         super.onResume();
@@ -122,6 +126,7 @@ public class ProgressActivity extends AppCompatActivity {
         }
     }
 
+    //fetch the user's overall stats and the per-day breakdown
     private void loadProgress() {
         progressLoading.setVisibility(View.VISIBLE);
         int userId = sessionManager.getUserId();
@@ -133,6 +138,7 @@ public class ProgressActivity extends AppCompatActivity {
                     public void onResponse(String response) {
                         progressLoading.setVisibility(View.GONE);
                         try {
+                            //pull the totals out of the JSON
                             JSONObject json = new JSONObject(response);
                             int hDone = json.optInt("habitsCompleted", 0);
                             int hTotal = json.optInt("habitsTotal", 0);
@@ -140,13 +146,16 @@ public class ProgressActivity extends AppCompatActivity {
                             int wTotal = json.optInt("workoutsTotal", 0);
                             double weekly = json.optDouble("weeklyPercent", 0.0);
 
+                            //update the totals shown at the top
                             tvProgressHabits.setText(hDone + " / " + hTotal);
                             tvProgressWorkouts.setText(wDone + " / " + wTotal);
 
+                            //weekly bar plus the matching percent label
                             int pctInt = (int) weekly;
                             tvWeeklyPercent.setText(pctInt + "%");
                             progressWeeklyBar.setProgress(pctInt);
 
+                            //pick a motivational message based on the percent
                             if (weekly >= 80) {
                                 tvWeeklyMessage.setText("Outstanding! You're crushing your goals!");
                             } else if (weekly >= 50) {
@@ -157,14 +166,17 @@ public class ProgressActivity extends AppCompatActivity {
                                 tvWeeklyMessage.setText("Complete some tasks to see your progress here.");
                             }
 
+                            //clear out the previous day bars before drawing the new ones
                             layoutDailyBars.removeAllViews();
                             JSONObject daily = json.optJSONObject("daily");
                             if (daily != null) {
+                                //one row per day in the daily breakdown
                                 Iterator<String> keys = daily.keys();
                                 while (keys.hasNext()) {
                                     String day = keys.next();
                                     double pct = daily.optDouble(day, 0);
 
+                                    //inflate a single bar row from the item layout
                                     View barView = LayoutInflater.from(ProgressActivity.this)
                                             .inflate(R.layout.item_daily_bar, layoutDailyBars, false);
 
@@ -172,6 +184,7 @@ public class ProgressActivity extends AppCompatActivity {
                                     ProgressBar progressDay = (ProgressBar) barView.findViewById(R.id.progressDay);
                                     TextView tvPercent = (TextView) barView.findViewById(R.id.tvDayPercent);
 
+                                    //shorten the day name to three letters like MON, TUE
                                     tvDay.setText(day.length() >= 3
                                             ? day.substring(0, 3).toUpperCase()
                                             : day.toUpperCase());

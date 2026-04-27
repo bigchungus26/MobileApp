@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //if no user is logged in, send them straight to the login screen
         sessionManager = new SessionManager(MainActivity.this);
         if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(MainActivity.this, LoginActivity.class));
@@ -72,14 +73,17 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         EdgeToEdge.enable(MainActivity.this);
         setContentView(R.layout.activity_main);
 
+        //volley queue handles all the network requests on this screen
         queue = Volley.newRequestQueue(MainActivity.this);
 
+        //top toolbar with the app name
         Toolbar mainToolbar = (Toolbar) findViewById(R.id.mainToolbar);
         setSupportActionBar(mainToolbar);
         if (getSupportActionBar() != null) {
             getSupportActionBar().setTitle("SmartTracker");
         }
 
+        //add padding so the layout does not sit under the status or nav bar
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), new OnApplyWindowInsetsListener() {
             @Override
             public WindowInsetsCompat onApplyWindowInsets(View v, WindowInsetsCompat insets) {
@@ -89,6 +93,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
         });
 
+        //link the layout views to the variables we use in code
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         bottomNav = (BottomNavigationView) findViewById(R.id.bottomNav);
         fabAdd = (FloatingActionButton) findViewById(R.id.fabAdd);
@@ -101,12 +106,15 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         btnStartNow = (Button) findViewById(R.id.btnStartNow);
         tvSeeAll = (TextView) findViewById(R.id.tvSeeAll);
 
+        //greet the user with the name we saved at login
         tvUserName.setText(sessionManager.getUserName());
 
+        //set up the today tasks list with a vertical layout
         taskAdapter = new TaskAdapter(MainActivity.this);
         recyclerTodayTasks.setLayoutManager(new LinearLayoutManager(MainActivity.this));
         recyclerTodayTasks.setAdapter(taskAdapter);
 
+        //bottom bar navigation between the four main screens
         bottomNav.setSelectedItemId(R.id.nav_home);
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
@@ -131,16 +139,19 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
         });
 
+        //floating add button opens the add habit/workout chooser
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) { showAddChooser(); }
         });
 
+        //start now button does the same thing as the add button
         btnStartNow.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) { showAddChooser(); }
         });
 
+        //see all link jumps to the full habits screen
         tvSeeAll.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -149,6 +160,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
         });
 
+        //profile icon opens an account dialog with a log out button
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -169,10 +181,12 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
             }
         });
 
+        //first load of tasks and progress when the screen opens
         loadTasks();
         loadProgress();
     }
 
+    //refresh the data every time the user comes back to this screen
     @Override
     protected void onResume() {
         super.onResume();
@@ -182,12 +196,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         }
     }
 
+    //inflate the three dot menu in the toolbar
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.main_menu, menu);
         return true;
     }
 
+    //handle taps on the toolbar menu items
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.action_settings) {
@@ -197,6 +213,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         return super.onOptionsItemSelected(item);
     }
 
+    //fetch today's tasks from the backend and pass them to the adapter
     private void loadTasks() {
         final int userId = sessionManager.getUserId();
         String url = ApiConfig.GET_TASKS + "?user_id=" + userId;
@@ -205,6 +222,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        //parse the JSON array into Task objects
                         List<Task> tasks = new ArrayList<>();
                         try {
                             JSONArray arr = new JSONArray(response);
@@ -229,6 +247,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         queue.add(request);
     }
 
+    //fetch the user's habit/workout counts and weekly percent for the dashboard
     private void loadProgress() {
         int userId = sessionManager.getUserId();
         String url = ApiConfig.GET_PROGRESS + "?user_id=" + userId;
@@ -238,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     @Override
                     public void onResponse(String response) {
                         try {
+                            //pull each metric out of the JSON response
                             JSONObject json = new JSONObject(response);
                             int hDone = json.optInt("habitsCompleted", 0);
                             int hTotal = json.optInt("habitsTotal", 0);
@@ -245,10 +265,12 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                             int wTotal = json.optInt("workoutsTotal", 0);
                             double weekly = json.optDouble("weeklyPercent", 0.0);
 
+                            //update the dashboard counters and progress bar
                             tvHabitsCount.setText(hDone + " / " + hTotal);
                             tvWorkoutCount.setText(wDone + " / " + wTotal);
                             progressWeekly.setProgress((int) weekly);
 
+                            //pick a motivational message based on the weekly percent
                             if (weekly >= 80) {
                                 tvProgressText.setText("Amazing! You're crushing it this week!");
                             } else if (weekly >= 50) {
@@ -269,6 +291,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         queue.add(request);
     }
 
+    //called when the user checks or unchecks a task in the list
     @Override
     public void onToggle(final int taskId) {
         final int userId = sessionManager.getUserId();
@@ -277,6 +300,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
+                        //refresh tasks and progress so the dashboard stays in sync
                         loadTasks();
                         loadProgress();
                     }
@@ -285,6 +309,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
                     @Override
                     public void onErrorResponse(VolleyError error) { }
                 }) {
+            //POST body sent to the toggle endpoint
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
@@ -297,6 +322,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.OnTas
         queue.add(request);
     }
 
+    //popup that lets the user pick a new habit or new workout
     public void showAddChooser() {
         new AlertDialog.Builder(MainActivity.this)
                 .setTitle("Add New")

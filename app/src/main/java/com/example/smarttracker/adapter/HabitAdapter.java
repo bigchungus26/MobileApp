@@ -17,9 +17,12 @@ import java.util.List;
 
 public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHolder> {
 
+    //the data the adapter is currently displaying
     private List<Habit> habits = new ArrayList<>();
+    //callback fired when the trash icon is tapped
     private final OnHabitDeleteListener listener;
 
+    //interface the activity implements so the adapter can ask for a delete
     public interface OnHabitDeleteListener {
         void onDelete(int habitId, String title);
     }
@@ -28,11 +31,13 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
         this.listener = listener;
     }
 
+    //replace the dataset and tell the recycler to redraw
     public void setHabits(List<Habit> habits) {
         this.habits = habits;
         notifyDataSetChanged();
     }
 
+    //build a single row from the item_habit layout
     @NonNull
     @Override
     public HabitViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -41,19 +46,26 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
         return new HabitViewHolder(view);
     }
 
+    //fill in one row with the data for the habit at this position
     @Override
     public void onBindViewHolder(@NonNull HabitViewHolder holder, int position) {
         Habit habit = habits.get(position);
-        String description = habit.description != null && !habit.description.isEmpty()
-                ? habit.description
-                : (habit.category != null && !habit.category.isEmpty()
-                        ? habit.category : "No description");
+        //fall back to the category if no description was given
+        String description;
+        if (habit.description != null && !habit.description.isEmpty()) {
+            description = habit.description;
+        } else if (habit.category != null && !habit.category.isEmpty()) {
+            description = habit.category;
+        } else {
+            description = "No description";
+        }
 
         holder.tvTitle.setText(habit.title);
         holder.tvDescription.setText(description);
         holder.tvFrequency.setText(habit.frequency);
         holder.tvStreak.setText("Streak: " + habit.streak);
 
+        //pass the delete tap back to the activity
         holder.ivDelete.setOnClickListener(v -> {
             if (listener != null) listener.onDelete(habit.id, habit.title);
         });
@@ -64,6 +76,7 @@ public class HabitAdapter extends RecyclerView.Adapter<HabitAdapter.HabitViewHol
         return habits.size();
     }
 
+    //holds the views for a single habit row so we don't keep re-finding them
     static class HabitViewHolder extends RecyclerView.ViewHolder {
         TextView tvTitle, tvDescription, tvFrequency, tvStreak;
         ImageView ivDelete;

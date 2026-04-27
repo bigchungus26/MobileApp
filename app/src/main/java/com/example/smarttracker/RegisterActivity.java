@@ -42,6 +42,7 @@ public class RegisterActivity extends AppCompatActivity {
 
         EdgeToEdge.enable(RegisterActivity.this);
         setContentView(R.layout.activity_register);
+        //pad the layout around the system bars
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -51,16 +52,19 @@ public class RegisterActivity extends AppCompatActivity {
         sessionManager = new SessionManager(RegisterActivity.this);
         queue = Volley.newRequestQueue(RegisterActivity.this);
 
+        //link form fields to the layout
         etName = (TextInputEditText) findViewById(R.id.etName);
         etEmail = (TextInputEditText) findViewById(R.id.etEmail);
         etPassword = (TextInputEditText) findViewById(R.id.etPassword);
         btnRegister = (Button) findViewById(R.id.btnRegister);
         tvGoToLogin = (TextView) findViewById(R.id.tvGoToLogin);
 
+        //register button kicks off the create account request
         btnRegister.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { register(); }
         });
 
+        //back link just closes this screen and returns to login
         tvGoToLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -69,19 +73,23 @@ public class RegisterActivity extends AppCompatActivity {
         });
     }
 
+    //validate the form then send it to the register endpoint
     private void register() {
         final String name = etName.getText().toString().trim();
         final String email = etEmail.getText().toString().trim();
         final String password = etPassword.getText().toString().trim();
 
+        //all three fields are required
         if (name.isEmpty() || email.isEmpty() || password.isEmpty()) {
             Toast.makeText(RegisterActivity.this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             return;
         }
+        //check the email matches the standard pattern
         if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             Toast.makeText(RegisterActivity.this, "Please enter a valid email address", Toast.LENGTH_SHORT).show();
             return;
         }
+        //enforce a minimum password length
         if (password.length() < 6) {
             Toast.makeText(RegisterActivity.this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();
             return;
@@ -92,6 +100,7 @@ public class RegisterActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(String response) {
                         try {
+                            //read the success flag from the response
                             JSONObject json = new JSONObject(response);
                             if (!json.optBoolean("success", false)) {
                                 Toast.makeText(RegisterActivity.this,
@@ -99,10 +108,12 @@ public class RegisterActivity extends AppCompatActivity {
                                         Toast.LENGTH_SHORT).show();
                                 return;
                             }
+                            //grab the new user info from the response
                             int userId = json.getInt("userId");
                             String userName = json.getString("name");
                             String userEmail = json.getString("email");
 
+                            //auto log the user in and clear the back stack
                             sessionManager.saveSession(userId, userName, userEmail);
                             startActivity(new Intent(RegisterActivity.this, MainActivity.class)
                                     .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
@@ -120,6 +131,7 @@ public class RegisterActivity extends AppCompatActivity {
                                 "Network error", Toast.LENGTH_SHORT).show();
                     }
                 }) {
+            //POST body sent to register.php
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();

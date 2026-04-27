@@ -56,6 +56,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //gate this screen behind a valid session
         sessionManager = new SessionManager(this);
         if (!sessionManager.isLoggedIn()) {
             startActivity(new Intent(WorkoutsActivity.this, LoginActivity.class));
@@ -67,6 +68,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
 
         queue = Volley.newRequestQueue(WorkoutsActivity.this);
 
+        //link the layout views
         tvUserName = (TextView) findViewById(R.id.tvUserName);
         ivProfile = (ImageView) findViewById(R.id.ivProfile);
         progressWorkouts = (ProgressBar) findViewById(R.id.progressWorkouts);
@@ -77,10 +79,12 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
 
         tvUserName.setText(sessionManager.getUserName());
 
+        //set up the workouts list
         workoutAdapter = new WorkoutAdapter(WorkoutsActivity.this);
         recyclerWorkouts.setLayoutManager(new LinearLayoutManager(WorkoutsActivity.this));
         recyclerWorkouts.setAdapter(workoutAdapter);
 
+        //highlight the workouts tab in the bottom nav
         bottomNav.setSelectedItemId(R.id.nav_workouts);
         bottomNav.setOnItemSelectedListener(new NavigationBarView.OnItemSelectedListener() {
             @Override
@@ -105,11 +109,13 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
             }
         });
 
+        //add button opens the log workout dialog
         fabAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) { showAddWorkoutDialog(); }
         });
 
+        //profile icon opens the account dialog with log out
         ivProfile.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -132,11 +138,13 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
 
         loadWorkouts();
 
+        //open the dialog right away if we got here from the add chooser
         if (getIntent().getBooleanExtra("openAddDialog", false)) {
             showAddWorkoutDialog();
         }
     }
 
+    //refresh the list whenever the user comes back to this screen
     @Override
     protected void onResume() {
         super.onResume();
@@ -145,6 +153,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
         }
     }
 
+    //fetch the user's workouts from the backend
     private void loadWorkouts() {
         progressWorkouts.setVisibility(View.VISIBLE);
         int userId = sessionManager.getUserId();
@@ -155,6 +164,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                     @Override
                     public void onResponse(String response) {
                         progressWorkouts.setVisibility(View.GONE);
+                        //convert the JSON array into Workout objects
                         List<Workout> workouts = new ArrayList<>();
                         try {
                             JSONArray arr = new JSONArray(response);
@@ -174,6 +184,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                         } catch (Exception ignored) { }
 
                         workoutAdapter.setWorkouts(workouts);
+                        //show the empty state when there are no workouts logged
                         if (workouts.isEmpty()) {
                             tvEmpty.setVisibility(View.VISIBLE);
                             recyclerWorkouts.setVisibility(View.GONE);
@@ -195,10 +206,12 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
         queue.add(request);
     }
 
+    //popup form to log a new workout
     private void showAddWorkoutDialog() {
         View dialogView = LayoutInflater.from(WorkoutsActivity.this)
                 .inflate(R.layout.dialog_add_workout, null);
 
+        //grab the form inputs from the dialog view
         final TextInputEditText etTitle = (TextInputEditText) dialogView.findViewById(R.id.etWorkoutTitle);
         final TextInputEditText etDuration = (TextInputEditText) dialogView.findViewById(R.id.etDuration);
         final TextInputEditText etCalories = (TextInputEditText) dialogView.findViewById(R.id.etCalories);
@@ -210,6 +223,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                 .setPositiveButton("Add", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
+                        //title is required
                         String title = etTitle.getText().toString().trim();
                         if (title.isEmpty()) {
                             Toast.makeText(WorkoutsActivity.this,
@@ -217,9 +231,11 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                             return;
                         }
 
+                        //parse the number fields, default to 0 if blank
                         int duration = parseIntOrZero(etDuration.getText().toString().trim());
                         int calories = parseIntOrZero(etCalories.getText().toString().trim());
 
+                        //read the selected intensity radio button
                         String intensity;
                         if (rgIntensity.getCheckedRadioButtonId() == R.id.rbLow) {
                             intensity = "LOW";
@@ -236,6 +252,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                 .show();
     }
 
+    //POST the new workout to the backend
     private void addWorkout(final String title, final int duration,
                             final int calories, final String intensity) {
         final int userId = sessionManager.getUserId();
@@ -271,6 +288,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
         queue.add(request);
     }
 
+    //small helper that returns 0 when the text is empty or not a number
     private int parseIntOrZero(String s) {
         if (s.isEmpty()) return 0;
         try {
@@ -280,6 +298,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
         }
     }
 
+    //called when the user checks the workout's done checkbox
     @Override
     public void onToggle(final int workoutId) {
         final int userId = sessionManager.getUserId();
@@ -305,6 +324,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
         queue.add(request);
     }
 
+    //triggered by the trash icon, asks the user to confirm first
     @Override
     public void onDelete(final int workoutId, String title) {
         new AlertDialog.Builder(WorkoutsActivity.this)
@@ -320,6 +340,7 @@ public class WorkoutsActivity extends AppCompatActivity implements WorkoutAdapte
                 .show();
     }
 
+    //call the delete endpoint then refresh the list
     private void deleteWorkout(final int workoutId) {
         final int userId = sessionManager.getUserId();
 

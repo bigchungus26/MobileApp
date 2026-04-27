@@ -19,9 +19,12 @@ import java.util.List;
 
 public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutViewHolder> {
 
+    //the list of workouts currently shown
     private List<Workout> workouts = new ArrayList<>();
+    //callback fired for both toggle and delete actions
     private final OnWorkoutActionListener listener;
 
+    //interface so the activity can react to row actions
     public interface OnWorkoutActionListener {
         void onToggle(int workoutId);
         void onDelete(int workoutId, String title);
@@ -31,11 +34,13 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         this.listener = listener;
     }
 
+    //replace the dataset and tell the recycler to redraw
     public void setWorkouts(List<Workout> workouts) {
         this.workouts = workouts;
         notifyDataSetChanged();
     }
 
+    //inflate one row from the item_workout layout
     @NonNull
     @Override
     public WorkoutViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -44,6 +49,7 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         return new WorkoutViewHolder(view);
     }
 
+    //fill in one row with the workout data
     @Override
     public void onBindViewHolder(@NonNull WorkoutViewHolder holder, int position) {
         Workout workout = workouts.get(position);
@@ -53,19 +59,23 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         holder.tvCalories.setText(workout.calories + " cal");
         holder.tvIntensity.setText(workout.intensity);
 
+        //clear the listener before setting checked so we don't trigger it
         holder.checkWorkout.setOnCheckedChangeListener(null);
         holder.checkWorkout.setChecked(workout.completed);
 
+        //strike through the title when the workout is done
         if (workout.completed) {
             holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
         } else {
             holder.tvTitle.setPaintFlags(holder.tvTitle.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
         }
 
+        //hand the toggle action back up to the activity
         holder.checkWorkout.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (listener != null) listener.onToggle(workout.id);
         });
 
+        //hand the delete action back up to the activity
         holder.ivDelete.setOnClickListener(v -> {
             if (listener != null) listener.onDelete(workout.id, workout.title);
         });
@@ -76,6 +86,7 @@ public class WorkoutAdapter extends RecyclerView.Adapter<WorkoutAdapter.WorkoutV
         return workouts.size();
     }
 
+    //caches the views inside a single workout row
     static class WorkoutViewHolder extends RecyclerView.ViewHolder {
         CheckBox checkWorkout;
         TextView tvTitle, tvDuration, tvCalories, tvIntensity;

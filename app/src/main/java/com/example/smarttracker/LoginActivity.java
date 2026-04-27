@@ -40,6 +40,7 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        //if a session already exists skip the login screen
         sessionManager = new SessionManager(LoginActivity.this);
         if (sessionManager.isLoggedIn()) {
             startActivity(new Intent(LoginActivity.this, MainActivity.class));
@@ -49,6 +50,7 @@ public class LoginActivity extends AppCompatActivity {
 
         EdgeToEdge.enable(LoginActivity.this);
         setContentView(R.layout.activity_login);
+        //avoid the layout being hidden behind the system bars
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
@@ -57,11 +59,13 @@ public class LoginActivity extends AppCompatActivity {
 
         queue = Volley.newRequestQueue(LoginActivity.this);
 
+        //hook the input fields and buttons to their layout ids
         etEmail = (TextInputEditText) findViewById(R.id.etEmail);
         etPassword = (TextInputEditText) findViewById(R.id.etPassword);
         btnLogin = (Button) findViewById(R.id.btnLogin);
         tvGoToRegister = (TextView) findViewById(R.id.tvGoToRegister);
 
+        //tap login to call the login endpoint
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -69,14 +73,17 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
 
+        //tap the register link to open the register screen
         tvGoToRegister.setOnClickListener(v ->
                 startActivity(new Intent(LoginActivity.this, RegisterActivity.class)));
     }
 
+    //sends the email and password to the backend and saves the session on success
     private void login() {
         final String email = etEmail.getText().toString().trim();
         final String password = etPassword.getText().toString().trim();
 
+        //basic empty field check before hitting the network
         if (email.isEmpty() || password.isEmpty()) {
             Toast.makeText(LoginActivity.this, "Please fill all fields", Toast.LENGTH_SHORT).show();
             return;
@@ -87,6 +94,7 @@ public class LoginActivity extends AppCompatActivity {
                     @Override
                     public void onResponse(String response) {
                         try {
+                            //the backend returns a JSON with a success flag
                             JSONObject json = new JSONObject(response);
                             if (!json.optBoolean("success", false)) {
                                 Toast.makeText(LoginActivity.this,
@@ -94,10 +102,12 @@ public class LoginActivity extends AppCompatActivity {
                                         Toast.LENGTH_SHORT).show();
                                 return;
                             }
+                            //pull the user info out of the response
                             int userId = json.getInt("userId");
                             String name = json.getString("name");
                             String userEmail = json.getString("email");
 
+                            //save the session and move on to the main screen
                             sessionManager.saveSession(userId, name, userEmail);
                             startActivity(new Intent(LoginActivity.this, MainActivity.class));
                             finish();
@@ -114,6 +124,7 @@ public class LoginActivity extends AppCompatActivity {
                                 "Network error", Toast.LENGTH_SHORT).show();
                     }
                 }) {
+            //POST body sent to login.php
             @Override
             protected Map<String, String> getParams() {
                 Map<String, String> params = new HashMap<>();
